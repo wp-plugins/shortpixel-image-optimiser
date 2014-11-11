@@ -38,7 +38,7 @@ On the https://ShortPixel.com website, we are offering an API you can also use f
 Let's get ShortPixel plugin running on your WordPress website:
 
 
-1. Sign up using your email at http://shortpixel.com/free-sign-up
+1. Sign up using your email at https://shortpixel.com/free-sign-up
 2. You will receive your personal API key in a confirmation email, to the address you provided.
 3. Upload the ShortPixel plugin to the /wp-content/plugins/ directory
 4. Use your unique API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress.
