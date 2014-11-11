@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: image optimisation, compression, lossy, lossless, performance, upload speed, fast, image quality
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,7 +30,7 @@ Features included:
    - Better search ranking
    - Super fast websites
 
-On the ShortPixel.com website, we are offering an API you can also use for image optimisation purposses.
+On the https://ShortPixel.com website, we are offering an API you can also use for image optimisation purposses.
 
 
 == Installation ==
@@ -63,10 +63,18 @@ Yes, privacy is guaranteed. The ShortPixel automated encription process doesn't 
 
 == Screenshots ==
 
-1. ShortPixel_options_screenshot
-2. ShortPixel_plugin_screenshot
+1. Using the personal API key in the plugin Settings.
 
 == Changelog ==
 
 
+= 1.1 =
+
+* Updated Bulk editing to run in background
+* Updated default options
+* Added notifications on activation
+
+= 1.0 =
+
+* First working version
 
