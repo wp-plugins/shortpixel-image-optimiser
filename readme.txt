@@ -1,10 +1,10 @@
- === ShortPixel ===
+=== ShortPixel Image Optimiser ===
 
 Contributors: AlexSP
 Tags: image optimisation, compression, lossy, lossless, performance, upload speed, fast, image quality
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.0
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,7 +30,7 @@ Features included:
    - Better search ranking
    - Super fast websites
 
-On the ShortPixel.com website, we are offering an API you can also use for image optimisation purposses.
+On the https://ShortPixel.com website, we are offering an API you can also use for image optimisation purposses.
 
 
 == Installation ==
@@ -38,7 +38,7 @@ On the ShortPixel.com website, we are offering an API you can also use for image
 Let's get ShortPixel plugin running on your WordPress website:
 
 
-1. Sign up using your email at http://shortpixel.com/free-sign-up
+1. Sign up using your email at https://shortpixel.com/free-sign-up
 2. You will receive your personal API key in a confirmation email, to the address you provided.
 3. Upload the ShortPixel plugin to the /wp-content/plugins/ directory
 4. Use your unique API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress.
@@ -63,10 +63,21 @@ Yes, privacy is guaranteed. The ShortPixel automated encription process doesn't 
 
 == Screenshots ==
 
-1. ShortPixel_options_screenshot
-2. ShortPixel_plugin_screenshot
+1. Using the personal API key in the plugin Settings.
 
 == Changelog ==
 
+= 1.0.3 =
 
+* minor bug fixes
+
+= 1.0.2 =
+
+* Updated Bulk editing to run in background
+* Updated default options
+* Added notifications on activation
+
+= 1.0 =
+
+* First working version
 

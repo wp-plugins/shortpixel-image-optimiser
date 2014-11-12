@@ -1,10 +1,12 @@
 <?php
-/**
- * Plugin Name: ShortPixel Image Optimiser
- * Plugin URI: https://shortpixel.com/
- * Description: ShortPixel is an image compression tool that helps improve your website performance.
- * Version: 1.0
- */
+/*
+Plugin Name: ShortPixel Image Optimiser
+Plugin URI: https://shortpixel.com/
+Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/free-sign-up">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
+Version: 1.0.3
+Author: ShortPixel
+Author URI: https://shortpixel.com
+*/
 
 require_once('shortpixel_api.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
@@ -14,7 +16,7 @@ class WPShortPixel {
     private $_apiInterface = null;
     private $_apiKey = '';
     private $_compressionType = '';
-    private $_processThumbnails = 0;
+    private $_processThumbnails = 1;
 
     public function __construct() {
         define('SP_DEBUG', false);
@@ -28,13 +30,16 @@ class WPShortPixel {
         //add hook for image upload processing
         add_filter( 'wp_generate_attachment_metadata', array( &$this, 'handleImageUpload' ), 10, 2 );
         add_filter( 'manage_media_columns', array( &$this, 'columns' ) );
-        add_action( 'manage_media_custom_column', array( &$this, 'generateCustomColumn' ), 10, 2 );
+        add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), array(&$this, 'generatePluginLinks'));
 
+        add_action( 'manage_media_custom_column', array( &$this, 'generateCustomColumn' ), 10, 2 );
+        add_action( 'handleBulkProcessing', array( &$this, 'handleBulkProcessing' ) );
 
 
         //add settings page
         add_action( 'admin_menu', array( &$this, 'registerSettingsPage' ) );
         add_action( 'admin_menu', array( &$this, 'registerAdminPage' ) );
+        add_action( 'admin_notices', array( &$this, 'displayNotice' ) );
 
     }
 
@@ -50,6 +55,8 @@ class WPShortPixel {
 
         if(get_option('wp-short-process_thumbnails') != false) {
             $this->_processThumbnails = get_option('wp-short-process_thumbnails');
+        } else {
+            add_option('wp-short-process_thumbnails', $this->_processThumbnails, '', 'yes' );
         }
 
         if(get_option('wp-short-pixel-fileCount') === false) {
@@ -106,7 +113,7 @@ class WPShortPixel {
     }
 
     public function bulkProcesss() {
-        echo '<h1>ShortPixel bulk compression</h1>';
+        echo '<h1>ShortPixel Bulk Processing</h1>';
 
         if ( function_exists( 'apache_setenv' ) ) {
             @apache_setenv('no-gzip', 1);
@@ -122,43 +129,94 @@ class WPShortPixel {
             'post_mime_type' => 'image'
         ));
 
+        $bulkProcessingLog = get_option('bulkProcessingLog');
+        $bulkProcessingRunning = false;
+
+        if(
+            is_null($bulkProcessingLog['endDate']) &&
+            ( $bulkProcessingLog['lastUpdate'] <  $bulkProcessingLog['lastUpdate'] + 60 ) &&
+            ( $bulkProcessingLog['startTime'] < $bulkProcessingLog['startTime'] + (60 * 15))
+        ) {
+            $bulkProcessingRunning = true;
+        }
+
         if(isset($_POST['bulkProcess'])) {
 
-            @ob_implicit_flush( true );
-            @ob_end_flush();
-
-            foreach( $attachments as $attachment ) {
-
-                //public function processImage($url, $filePath, $ID = null, $time = 0) {
-                $imageURL =  wp_get_attachment_url($attachment->ID);
-                $imagePath = get_attached_file($attachment->ID);
-
-                $processingResult = $this->_apiInterface->processImage($imageURL, $imagePath, $attachment->ID);
-
-                if(!is_object($processingResult)) {
-                    echo "Error! Image " . basename($imagePath) . " could not be processed<br/>";
-                }
-
-                if($processingResult->Status->Code == 1) {
-                    echo "Image " . basename($imagePath) . " scheduled for processing.<br/>";
-                } elseif($processingResult->Status->Code == 2) {
-                    echo "Image " . basename($imagePath) . " processed succesfully.<br/>";
-                } else {
-                    echo "Error! Image " . basename($imagePath) . " could not be processed<br/>";
-                }
-                sleep(1);
+            $scheduleResult = wp_schedule_single_event(time()+1, 'handleBulkProcessing');
+            if(is_null($scheduleResult)) {
+                $bulkProcessingLog = array(
+                    'startTime' => time(),
+                    'totalImageCount' => count($attachments),
+                    'doneCount' => 0,
+                    'log' => '',
+                    'lastUpdate' => time(),
+                    'endDate' => null
+                );
+                update_option('bulkProcessingLog', $bulkProcessingLog);
+                echo "Bulk processing started. Please visite the Bulk processing page to view the status. </br>";
             }
 
-            @ob_flush();
-            flush();
+            if($scheduleResult === false) {
+                echo "There was a problem scheduling the bulk processing. Please try again later.";
+            }
 
         } else {
-            if(count($attachments)) {
-                echo $this->getBulkProcessingForm(count($attachments));
+
+            if ($bulkProcessingRunning) {
+                echo  "{$bulkProcessingLog['doneCount']}/{$bulkProcessingLog['totalImageCount']} images processed</br></br>Processing log:</br>";
+                echo $bulkProcessingLog['log'];
             } else {
-                echo "It appear that you have no images uploaded yet.</br>";
+
+                if(count($attachments)) {
+                    if($bulkProcessingLog) { echo "Last succesful bulk processing done on {$bulkProcessingLog['totalImageCount']} images ("  . date("d-m-Y H:i:s", $bulkProcessingLog['endDate']) . ").</br>"; }
+                    echo $this->getBulkProcessingForm(count($attachments));
+                } else {
+                    echo "It appear that you have no images uploaded yet.</br>";
+                }
             }
         }
+
+    }
+
+    public function handleBulkProcessing() {
+        //get all images
+        $attachments = null;
+        $attachments = get_posts( array(
+            'numberposts' => -1,
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image'
+        ));
+        //set up logging in db
+        $bulkProcessingLog = get_option('bulkProcessingLog');
+        //for each image
+        foreach( $attachments as $attachment ) {
+            //handle image processing
+            $imageURL =  wp_get_attachment_url($attachment->ID);
+            $imagePath = get_attached_file($attachment->ID);
+
+            $processingResult = $this->_apiInterface->processImage($imageURL, $imagePath, $attachment->ID);
+
+            if(!is_object($processingResult)) {
+                $bulkProcessingLog['log'] .= "Error! Image " . basename($imagePath) . " could not be processed<br/>";
+            }
+
+            if($processingResult->Status->Code == 1) {
+                $bulkProcessingLog['log'] .= "Image " . basename($imagePath) . " scheduled for processing.<br/>";
+            } elseif($processingResult->Status->Code == 2) {
+                $bulkProcessingLog['log'] .= "Image " . basename($imagePath) . " processed succesfully.<br/>";
+            } else {
+                $bulkProcessingLog['log'] .= "Error! Image " . basename($imagePath) . " could not be processed<br/>";
+            }
+
+            $bulkProcessingLog['doneCount'] = $bulkProcessingLog['doneCount'] + 1;
+            $bulkProcessingLog['lastUpdate'] = time();
+            update_option('bulkProcessingLog', $bulkProcessingLog);
+
+        }
+
+        $bulkProcessingLog['endDate'] = time();
+
+        update_option('bulkProcessingLog', $bulkProcessingLog);
 
     }
 
@@ -182,7 +240,7 @@ class WPShortPixel {
         $checked = '';
         if($this->_processThumbnails) { $checked = 'checked'; }
 
-        echo '<h1>ShortPixel Options</h1>';
+        echo '<h1>ShortPixel Image Optimiser Settings</h1>';
         echo '<p>ShortPixel improves website performance by reducing the images’ size.<BR>Configure ShortPixel plugin to compress both past and new past images and optimise your website.</p>';
 
         $formHTML = <<< HTML
@@ -194,9 +252,10 @@ class WPShortPixel {
 </tr>
 <tr><td style="padding-left: 0px;" colspan="2">Don’t have an API Key? <a href="https://shortpixel.com/wp-apikey" target="_blank">Sign up, it’s free.</a></td></tr>
 <tr><th scope="row">
-    <label for="compressionType">Compression type: <span title="Lossy compression. Lossy has a better compression rate than lossless compression. The resulting image is not 100% identical with the original. Works well for photos taken with your camera.
-    Lossless compression. The shrunk image will be identical with the original and smaller in size. Use this when you do not want to loose any of the original image's details. Works best for technical drawings, clip art and comics.">?</span></label>
-
+    <label for="compressionType">Compression type: <span title="
+Lossy compression: lossy has a better compression rate than lossless compression. The resulting image is not 100% identical with the original. Works well for photos taken with your camera.
+Lossless compression: the shrunk image will be identical with the original and smaller in size. Use this when you do not want to loose any of the original image's details. Works best for technical drawings, clip art and comics.
+    ">?</span></label>
 </th><td>
 HTML;
         if($this->_compressionType == 'lossless') {
@@ -257,11 +316,11 @@ HTML;
 </tr>
 <tr>
 <th scope="row"><label for="apiQuota">Your ShortPixel plan</label></th>
-<td>{$quotaData['APICallsQuota']} images</td>
+<td>{$quotaData['APICallsQuota']}</td>
 </tr>
 <tr>
 <th scope="row"><label for="usedQUota">Used Quota:</label></th>
-<td>{$quotaData['APICallsMade']} images</td>
+<td>{$quotaData['APICallsMade']}</td>
 </tr>
 <tr>
 <th scope="row"><label for="averagCompression">Average file size compression:</label></th>
@@ -275,13 +334,35 @@ HTML;
 
     public function getBulkProcessingForm($imageCount) {
         return <<< HTML
-You have {$imageCount} images in your library. </br>
+</br>
+Currently, you have {$imageCount} images in your library. </br>
 </br>
 <form action='' method="POST" >
 <input type="submit" name="bulkProcess" id="bulkProcess" class="button button-primary" value="Compress all your images">
 </form>
-
 HTML;
+    }
+
+    public function displayNotice() {
+        global $hook_suffix;
+
+        $divHeader = '<div class="updated">';
+        $divWarningHeader = '<div class="update-nag">';
+        $divFooter = '</div>';
+
+        $noticeActivationContent = 'ShortPixel plugin activated! Get an API key <a href="https://shortpixel.com/wp-apikey" target="_blank">here</a>. Sign up, it’s free.';
+        $noticeWrongAPIKeyContent = 'API Key invalid!';
+        $noticeCorrectAPIKeyContent = 'API Key valid!';
+
+        if($hook_suffix == 'settings_page_wp-shortpixel' && !empty($_POST)) {
+            $keyCheckData = $this->getQuotaInformation($_POST['key']);
+            if($keyCheckData['APIKeyValid']) {
+                echo $divHeader . $noticeCorrectAPIKeyContent . $divFooter;
+            } else {
+                echo $divWarningHeader . $noticeWrongAPIKeyContent . $divFooter;
+            }
+        }
+        if($hook_suffix == 'plugins.php' && $_GET['activate']) { echo  $divHeader . $noticeActivationContent . $divFooter; }
     }
 
     static public function formatBytes($bytes, $precision = 2) {
@@ -296,13 +377,18 @@ HTML;
         return round($bytes, $precision) . ' ' . $units[$pow];
     }
 
-    public function getQuotaInformation() {
-        $requestURL = 'https://api.shortpixel.com/api-status.php?key='.$this->_apiKey;
+    public function getQuotaInformation($apiKey = null) {
+
+        if(is_null($apiKey)) { $apiKey = $this->_apiKey; }
+
+        $requestURL = 'https://api.shortpixel.com/api-status.php?key='.$apiKey;
         $args = array('timeout'=> SP_MAX_TIMEOUT);
         $response = wp_remote_get($requestURL, $args);
 
-        $defaultData = array("APICallsMade" => 'Information unavailable. Please check your API key.'
-        , "APICallsQuota" => 'Information unavailable. Please check your API key.');
+        $defaultData = array(
+            "APIKeyValid" => false,
+            "APICallsMade" => 'Information unavailable. Please check your API key.',
+            "APICallsQuota" => 'Information unavailable. Please check your API key.');
 
         if(is_object($response) && get_class($response) == 'WP_Error') {
             return $defaultData;
@@ -317,7 +403,13 @@ HTML;
 
         if(empty($data)) { return $defaultData; }
 
-        return array("APICallsMade" => $data->APICallsMade, "APICallsQuota" => $data->APICallsQuota);
+        if($data->Status->Code == '-401') { return $defaultData; }
+
+        return array(
+                     "APIKeyValid" => true,
+                     "APICallsMade" => number_format($data->APICallsMade) . ' images',
+                     "APICallsQuota" => number_format($data->APICallsQuota) . ' images'
+        );
 
 
     }
@@ -340,6 +432,13 @@ HTML;
         $defaults['wp-shortPixel'] = 'Short Pixel Compression';
         return $defaults;
     }
+
+    public function generatePluginLinks($links) {
+        $in = '<a href="options-general.php?page=wp-shortpixel">Settings</a>';
+        array_unshift($links, $in);
+        return $links;
+    }
+
     public function parseJSON($data) {
         if ( function_exists('json_decode') ) {
             $data = json_decode( $data );
