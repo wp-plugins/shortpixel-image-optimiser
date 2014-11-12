@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: image optimisation, compression, lossy, lossless, performance, upload speed, fast, image quality
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,8 +67,11 @@ Yes, privacy is guaranteed. The ShortPixel automated encription process doesn't 
 
 == Changelog ==
 
+= 1.0.3 =
 
-= 1.1 =
+* minor bug fixes
+
+= 1.0.2 =
 
 * Updated Bulk editing to run in background
 * Updated default options
