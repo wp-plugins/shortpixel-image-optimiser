@@ -105,6 +105,19 @@ class shortpixel_api {
     public function handleSuccess($callData, $url, $filePath, $ID) {
         $tempFile = download_url(str_replace('https://','http://',urldecode($callData->DownloadURL)));
 
+        if(property_exists($callData, 'LossySize')) {
+            //lossy
+            $correctFileSize = $callData->LossySize;
+        } else {
+            //lossless
+            $correctFileSize = $callData->SPSize;
+        }
+
+        //check response so that download is OK
+        if(filesize($tempFile) != $correctFileSize) {
+                return printf("Error downloading file (%s)", $tempFile->get_error_message());
+        }
+
         if ( is_wp_error( $tempFile ) ) {
             @unlink($tempFile);
             return printf("Error downloading file (%s)", $tempFile->get_error_message());
