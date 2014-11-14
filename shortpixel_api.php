@@ -115,7 +115,7 @@ class shortpixel_api {
 
         //check response so that download is OK
         if(filesize($tempFile) != $correctFileSize) {
-                return printf("Error downloading file (%s)", $tempFile->get_error_message());
+            return printf("Error downloading file - incorrect file size");
         }
 
         if ( is_wp_error( $tempFile ) ) {
