@@ -8,6 +8,7 @@ class shortpixel_api {
     private $_apiKey = '';
     private $_compressionType = '';
     private $_maxAttempts = 10;
+    private $_apiEndPoint = 'https://api.shortpixel.com/v1/reducer.php';
 
     public function setCompressionType($compressionType)
     {
@@ -42,8 +43,7 @@ class shortpixel_api {
     }
 
     public function doRequests($url, $filePath, $ID = null, $time = 0) {
-        $requestURL = 'https://api.shortpixel.com/reducer.php?key='.$this->_apiKey.'&lossy='.$this->_compressionType.'&url=';
-
+        $requestURL = $this->_apiEndPoint . '?key=' . $this->_apiKey . '&lossy=' . $this->_compressionType . '&url=';
         $requestURL = $requestURL . urlencode($url);
 
         $args = array('timeout'=> SP_MAX_TIMEOUT);
@@ -103,11 +103,25 @@ class shortpixel_api {
 
 
     public function handleSuccess($callData, $url, $filePath, $ID) {
-        $tempFile = download_url(str_replace('https://','http://',urldecode($callData->DownloadURL)));
+
+        if(property_exists($callData, 'LossySize')) {
+            //lossy
+            $correctFileSize = $callData->LossySize;
+            $tempFile = download_url(str_replace('https://','http://',urldecode($callData->LossyURL)));
+        } else {
+            //lossless
+            $correctFileSize = $callData->LoselessSize;
+            $tempFile = download_url(str_replace('https://','http://',urldecode($callData->LosslessURL)));
+        }
 
         if ( is_wp_error( $tempFile ) ) {
             @unlink($tempFile);
             return printf("Error downloading file (%s)", $tempFile->get_error_message());
+        }
+
+        //check response so that download is OK
+        if(filesize($tempFile) != $correctFileSize) {
+            return printf("Error downloading file - incorrect file size");
         }
 
         if (!file_exists($tempFile)) {
@@ -127,7 +141,7 @@ class shortpixel_api {
             if(isset($callData->LossySize)) {
                 $savedSpace = $callData->OriginalSize - $callData->LossySize;
             } else {
-                $savedSpace = $callData->OriginalSize - $callData->SPSize;
+                $savedSpace = $callData->OriginalSize - $callData->LoselessSize;
             }
 
             update_option(
