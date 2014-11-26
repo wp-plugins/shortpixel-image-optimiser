@@ -46,7 +46,7 @@ class shortpixel_api {
         $requestURL = $this->_apiEndPoint . '?key=' . $this->_apiKey . '&lossy=' . $this->_compressionType . '&url=';
         $requestURL = $requestURL . urlencode($url);
 
-        $args = array('timeout'=> SP_MAX_TIMEOUT);
+        $args = array('timeout'=> SP_MAX_TIMEOUT, 'sslverify' => false);
 
         $response = wp_remote_get($requestURL, $args);
 
@@ -126,6 +126,22 @@ class shortpixel_api {
 
         if (!file_exists($tempFile)) {
             return printf("Unable to locate downloaded file (%s)", $tempFile);
+        }
+
+        //if backup is enabled
+        if(get_option('wp-short-backup_images')) {
+
+            if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
+                return printf("Backup folder does not exist and it could not be created");
+            }
+
+            if(is_writable(SP_BACKUP_FOLDER)) {
+                $source = $filePath;
+                $destination = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($source);
+                @copy($source, $destination);
+            } else {
+               return printf("Backup folder exists but is not writable");
+            }
         }
 
         @unlink( $filePath );

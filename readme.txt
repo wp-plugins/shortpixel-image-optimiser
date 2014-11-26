@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.2.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,12 @@ ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contac
 1. Using the personal API key in the plugin Settings.
 
 == Changelog ==
+
+= 1.3.1 =
+
+* possible fix for API key validation failing
+* added backup and restore for images that are processed with shortpixel
+* optimize now feature on Media Library
 
 = 1.0.6 =
 
