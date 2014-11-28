@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,13 +18,12 @@ Resulting, smaller, images are no different in quality from the original.
 
 ShortPixel uses advanced compression technology that reduces image size without any before/after differences. 
 
-Features included:
+Features included: 
    - Both lossy and lossless optimisation 
-   - Supported formats: JPG, PNG, GIF
+   - Supported formats: JPG, PNG, GIF (including animated)
    - Batch image optimisation
    - Powerful algorithms
    - Quick backups
-
    - Less bandwidth usage
    - Up to 90% compression rate
    - Better search ranking
@@ -54,7 +53,7 @@ This depends on your compression needs. Lossy has a better compression rate than
 
 With lossless compression, the shrunk image will be identical with the original and smaller in size. Use this when you do not want to loose any of the original image's details. Works best for technical drawings, clip art and comics.
 
-For more information about the difference read the <a href="http://en.wikipedia.org/wiki/Lossy_compression#Lossy_and_lossless_compression"Wiki article</a>.
+For more information about the difference read the <a href="http://en.wikipedia.org/wiki/Lossy_compression#Lossy_and_lossless_compression">Wiki article</a>.
 
 = Why do I need an API key? =
 
@@ -85,6 +84,9 @@ For now, ShortPixel supports JPEG and PNG. Thumbnails are also optimised. Additi
 
 ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contact us</a>!
 
+= What happens with my original images? =
+
+Your images are privately backed and can be restored. With lossy optimisation, the smaller image rarely comes in with slight differences. If you want to return to the original version, hit Restore backup in Media Library.
 
 == Screenshots ==
 
