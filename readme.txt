@@ -19,6 +19,7 @@ Resulting, smaller, images are no different in quality from the original.
 ShortPixel uses advanced compression technology that reduces image size without any before/after differences. 
 
 Features included: 
+
    - Both lossy and lossless optimisation 
    - Supported formats: JPG, PNG, GIF (including animated)
    - Batch image optimisation
@@ -53,7 +54,7 @@ This depends on your compression needs. Lossy has a better compression rate than
 
 With lossless compression, the shrunk image will be identical with the original and smaller in size. Use this when you do not want to loose any of the original image's details. Works best for technical drawings, clip art and comics.
 
-For more information about the difference read the <a href="http://en.wikipedia.org/wiki/Lossy_compression#Lossy_and_lossless_compression">Wiki article</a>.
+For more information about the difference read the <a href="http://en.wikipedia.org/wiki/Lossy_compression#Lossy_and_lossless_compression" target="_blank">Wiki article</a>.
 
 = Why do I need an API key? =
 
