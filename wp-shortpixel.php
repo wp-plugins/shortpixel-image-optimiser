@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/free-sign-up" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.3.4
+ * Version: 1.3.5
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -385,8 +385,8 @@ class WPShortPixel {
                 <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/">Installation </a> |
                 <a href="https://wordpress.org/support/plugin/shortpixel-image-optimiser">Support </a>
               </p>';
-        echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="/upload.php?page=wp-short-pixel-bulk">Bulk Optimize tool</a>.</p>';
-
+        echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimisation Tool</a>.</p>';
+        
         $formHTML = <<< HTML
 <form name='wp_shortpixel_options' action=''  method='post' id='wp_shortpixel_options'>
 <table class="form-table">

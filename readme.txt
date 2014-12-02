@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.3.4
+Stable tag: 1.3.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,26 +12,19 @@ The ShortPixel WordPress plugin optimizes images automaticaly using both lossy a
 
 == Description ==
 
-The ShortPixel WordPress plugin optimizes images automaticaly using both lossy and lossless compression, thus improving your website performance.
-Resulting, smaller, images are no different in quality from the original. 
+ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. 
 
+ShortPixel uses powerful algorithms that enable your website to load faster, use less bandwidth and rank better in search.
 
-ShortPixel uses advanced compression technology that reduces image size without any before/after differences. 
+The ShortPixel package includes:
 
-Features included: 
+	- Both lossy and lossless optimisation: you can choose between the two types of compression. Lossy for photographs. Lossless for technical drawings, clip art and comics.
+	- Up to 90% compression rate: with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences.
+	- Supported formats: JPG, PNG, GIF (including animated): optimisation applies to JPG, PNG and static GIF. NEW UPDATE: we introduced optimisation for animated GIFs.
+	- Backup and restore originals: if you ever want to return to the original version, images are automatically stored in a backup folder on your hosting servers.
+	- Batch image optimisation:  Bulk Optimisation tool now available. Crunch your past image gallery, and downsize your website in minutes.
 
-   - Both lossy and lossless optimisation 
-   - Supported formats: JPG, PNG, GIF (including animated)
-   - Batch image optimisation
-   - Powerful algorithms
-   - Quick backups
-   - Less bandwidth usage
-   - Up to 90% compression rate
-   - Better search ranking
-   - Super fast websites
-
-On the https://ShortPixel.com website, we are offering an API you can also use for image optimisation purposses.
-
+On the https://ShortPixel.com website, we offer free access to the ShrtPixel API which you can use for further image optimisation purposes.
 
 == Installation ==
 
@@ -87,7 +80,7 @@ ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contac
 
 = What happens with my original images? =
 
-Your images are privately backed and can be restored. With lossy optimisation, the smaller image rarely comes in with slight differences. If you want to return to the original version, hit Restore backup in Media Library.
+Your images are automatically stored in a backup folder, on your hosting server. After optimisation, if you want to switch back to a certain original image, hit Restore backup in the Media Library. If you are happy with the ShortPixel optimised images, you can deactivate saving the backups in the plugin Settings.
 
 == Screenshots ==
 
@@ -100,6 +93,12 @@ Your images are privately backed and can be restored. With lossy optimisation, t
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 1.3.5 =
+
+* fixed broken link in settings page
+* updated FAQ
+* description updated
 
 = 1.3.2 =
 
