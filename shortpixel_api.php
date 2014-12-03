@@ -72,6 +72,7 @@ class shortpixel_api {
         if(!$response) return $response;
 
         if($response['response']['code'] != 200) {
+            WPShortPixel::log("Response 200 OK");
             printf('Web service did not respond. Please try again later.');
             return false;
             //error
@@ -104,7 +105,7 @@ class shortpixel_api {
 
     public function handleSuccess($callData, $url, $filePath, $ID) {
 
-        if(property_exists($callData, 'LossySize')) {
+        if($this->_compressionType) {
             //lossy
             $correctFileSize = $callData->LossySize;
             $tempFile = download_url(str_replace('https://','http://',urldecode($callData->LossyURL)));
@@ -117,15 +118,18 @@ class shortpixel_api {
         if ( is_wp_error( $tempFile ) ) {
             @unlink($tempFile);
             return printf("Error downloading file (%s)", $tempFile->get_error_message());
+            die;
         }
 
         //check response so that download is OK
         if(filesize($tempFile) != $correctFileSize) {
             return printf("Error downloading file - incorrect file size");
+            die;
         }
 
         if (!file_exists($tempFile)) {
             return printf("Unable to locate downloaded file (%s)", $tempFile);
+            die;
         }
 
         //if backup is enabled

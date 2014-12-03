@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.3.5
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,7 +31,7 @@ On the https://ShortPixel.com website, we offer free access to the ShrtPixel API
 Let's get ShortPixel plugin running on your WordPress website:
 
 
-1. Sign up using your email at https://shortpixel.com/free-sign-up
+1. Sign up using your email at https://shortpixel.com/wp-apikey
 2. You will receive your personal API key in a confirmation email, to the address you provided.
 3. Upload the ShortPixel plugin to the /wp-content/plugins/ directory
 4. Use your unique API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress.
@@ -56,7 +56,7 @@ You can also use the API in your own applications, the <a href="https://shortpix
 
 = Where do I get my API key? =
 
-To get your API key, you must <a href="https://shortpixel.com/free-sign-up">Sign up to ShortPixel</a>. You will receive your personal API key in a confirmation email to the address you provided. Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress.
+To get your API key, you must <a href="https://shortpixel.com/wp-apikey">Sign up to ShortPixel</a>. You will receive your personal API key in a confirmation email to the address you provided. Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress.
 
 = Where do I use my API key? =
 
@@ -93,6 +93,11 @@ Your images are automatically stored in a backup folder, on your hosting server.
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 1.4.0 =
+
+* Bulk image processing improved so it can optimize all the images in background while admin page is open
+* small changes in readme.txt descrption
 
 = 1.3.5 =
 
