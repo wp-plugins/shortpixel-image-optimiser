@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -45,6 +45,7 @@ class WPShortPixel {
         add_action( 'admin_menu', array( &$this, 'registerSettingsPage' ) );
         add_action( 'admin_menu', array( &$this, 'registerAdminPage' ) );
         add_action( 'admin_notices', array( &$this, 'displayNotice' ) );
+        add_action( 'delete_attachment', array( &$this, 'handleDeleteAttachmentInBackup' ) );
 
         //automatic optimization
         add_action( 'admin_footer', array( &$this, 'my_action_javascript') );
@@ -246,10 +247,12 @@ class WPShortPixel {
             //main file
             @rename(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($uploadFilePath), $uploadFilePath);
             //overwriting thumbnails
-            foreach($meta["sizes"] as $size => $imageData) {
-                $source = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $imageData['file'];
-                $destination = $pathInfo['dirname'] . DIRECTORY_SEPARATOR . $imageData['file'];
-                @rename($source, $destination);
+            if(is_array($meta["sizes"])) {
+                foreach($meta["sizes"] as $size => $imageData) {
+                    $source = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $imageData['file'];
+                    $destination = $pathInfo['dirname'] . DIRECTORY_SEPARATOR . $imageData['file'];
+                    @rename($source, $destination);
+                }
             }
 
             unset($meta["ShortPixelImprovement"]);
@@ -265,6 +268,24 @@ class WPShortPixel {
         // send the user back where they came from
         wp_redirect($sendback);
         // we are done
+    }
+
+
+    public function handleDeleteAttachmentInBackup($ID) {
+        $uploadFilePath = get_attached_file($ID);
+        $meta = wp_get_attachment_metadata($ID);
+
+        try {
+            //main file
+            @unlink(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($uploadFilePath));
+            //overwriting thumbnails
+            foreach($meta["sizes"] as $size => $imageData) {
+                @unlink(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $imageData['file']);
+            }
+        } catch(Exception $e) {
+            //what to do, what to do?
+        }
+
     }
 
     public function bulkOptimizeActionHandler($hook) {
@@ -300,7 +321,7 @@ class WPShortPixel {
     }
 
     public function bulkProcesss() {
-        echo '<h1>ShortPixel Bulk Processing</h1>';
+        echo '<h1>Bulk Image Optimisation by ShortPixel</h1>';
 
         echo '
             <script type="text/javascript" >
@@ -318,8 +339,8 @@ class WPShortPixel {
         ';
 
         if(MUST_HAVE_KEY && $this->_verifiedKey == false) {
-            echo "<p>You do not have an API Key set. Bulk processing cannot be used. </p>";
-            echo "<p>Don’t have an API Key? <a href=\"https://shortpixel.com/wp-apikey\" target=\"_blank\">Sign up, it’s free.</a> </p>";
+            echo "<p>In order to start processing your images, you need to validate your API key in the ShortPixel Settings. If you don’t have an API Key, you can get one delivered to your inbox.</p>";
+            echo "<p>Don’t have an API Key yet? Get it now at <a href=\"https://shortpixel.com/wp-apikey\" target=\"_blank\">www.ShortPixel.com</a>, for free.</p>";
             return;
         }
 
@@ -351,9 +372,8 @@ class WPShortPixel {
 
         if($currentBulkProcessingStatus && $currentBulkProcessingStatus['running']) {
             echo "<p>
-                    Bulk processing started and it may take a while we process your images in the background. </br>
-                    This page will refresh every 30 seconds in order to display the latest status of the processing. </br>
-                    In the mean time you can continue using the admin as usually.
+					Bulk optimisation has started. It may take a while until we process all your images. The latest status of the processing will be displayed here every 30 seconds. 
+					In the meantime, you can continue using the admin as usual. However, <b>you musn’t close the WordPress admin</b>, or the bulk processing will stop.
                   </p>";
             echo '
                 <script type="text/javascript" >

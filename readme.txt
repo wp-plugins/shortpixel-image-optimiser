@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,13 +16,13 @@ ShortPixel is an image compression tool that helps improve your website performa
 
 ShortPixel uses powerful algorithms that enable your website to load faster, use less bandwidth and rank better in search.
 
-The ShortPixel package includes:
+**The ShortPixel package includes:**
 
-	- Both lossy and lossless optimisation: you can choose between the two types of compression. Lossy for photographs. Lossless for technical drawings, clip art and comics.
-	- Up to 90% compression rate: with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences.
-	- Supported formats: JPG, PNG, GIF (including animated): optimisation applies to JPG, PNG and static GIF. NEW UPDATE: we introduced optimisation for animated GIFs.
-	- Backup and restore originals: if you ever want to return to the original version, images are automatically stored in a backup folder on your hosting servers.
-	- Batch image optimisation:  Bulk Optimisation tool now available. Crunch your past image gallery, and downsize your website in minutes.
+* **Both lossy and lossless optimisation:** you can choose between the two types of compression. Lossy for photographs. Lossless for technical drawings, clip art and comics.
+* **Up to 90% compression rate:** with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences.
+* **Supported formats:** JPG, PNG, GIF (including animated): optimisation applies to JPG, PNG and static GIF. NEW UPDATE: we introduced optimisation for animated GIFs.
+* **Backup and restore originals:** if you ever want to return to the original version, images are automatically stored in a backup folder on your hosting servers.
+* **Batch image optimisation:**  Bulk Optimisation tool now available. Crunch your past image gallery, and downsize your website in minutes.
 
 On the https://ShortPixel.com website, we offer free access to the ShrtPixel API which you can use for further image optimisation purposes.
 
@@ -40,6 +40,17 @@ Let's get ShortPixel plugin running on your WordPress website:
 
 
 == Frequently Asked Questions ==
+
+= What happens to the existing images, when installing the ShortPixel plugin? = 
+
+Just installing the plugin won’t start the optimisation process on existing images. To begin optimising the images previously loaded on your website, you should:
+Go to Media Library, and select which of the existing images you want to optimise.
+OR
+Use the Bulk ShortPixel option, to automatically optimise all your previous library.
+
+= What happens with my original images after they have been processed with ShortPixel? =
+
+Your images are automatically stored in a backup folder, on your hosting server. After optimisation, if you want to switch back to a certain original image, hit **Restore backup** in the Media Library. If you are happy with the ShortPixel optimised images, you can deactivate saving the backups in the plugin Settings.
 
 = Should I pick lossy or lossless optimisation? =
 
@@ -78,10 +89,6 @@ For now, ShortPixel supports JPEG and PNG. Thumbnails are also optimised. Additi
 
 ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contact us</a>!
 
-= What happens with my original images? =
-
-Your images are automatically stored in a backup folder, on your hosting server. After optimisation, if you want to switch back to a certain original image, hit Restore backup in the Media Library. If you are happy with the ShortPixel optimised images, you can deactivate saving the backups in the plugin Settings.
-
 == Screenshots ==
 
 1. Activate your API key in the plugin Settings. (Settings>ShortPixel)
@@ -93,6 +100,12 @@ Your images are automatically stored in a backup folder, on your hosting server.
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 1.4.1 =
+
+* optimize again overwrote the original image, fixed
+* fixed restore errors
+* changes to FAQ/Description texts
 
 = 1.4.0 =
 

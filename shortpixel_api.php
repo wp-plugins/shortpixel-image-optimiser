@@ -139,10 +139,13 @@ class shortpixel_api {
                 return printf("Backup folder does not exist and it could not be created");
             }
 
+            $source = $filePath;
+            $destination = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($source);
+
             if(is_writable(SP_BACKUP_FOLDER)) {
-                $source = $filePath;
-                $destination = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($source);
-                @copy($source, $destination);
+                if(!file_exists($destination)) {
+                    @copy($source, $destination);
+                }
             } else {
                return printf("Backup folder exists but is not writable");
             }
