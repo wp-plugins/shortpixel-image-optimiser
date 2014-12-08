@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.4.1
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -100,6 +100,14 @@ ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contac
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 1.5.0 =
+
+* pictures are removed from backup as well when deleted
+* restore backup warning/error fixed
+* fixed useless/bad AJAX requests that occured sometimes
+* added user agent to API Key validation for debugging purposes
+* Bulk Processing was freezing for some users, fixed this + added Cancel button
 
 = 1.4.1 =
 

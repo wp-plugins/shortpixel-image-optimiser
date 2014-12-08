@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.4.1
+ * Version: 1.5.0
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -163,9 +163,14 @@ class WPShortPixel {
             die();
         }
 
+        $bulkLog = get_option('bulkProcessingLog');
+
         //query database for first found entry that needs processing
         global  $wpdb;
-        $qry = "SELECT post_id FROM " . $wpdb->prefix . "postmeta WHERE meta_value LIKE '%\"WaitingProcessing\";b:1;%' LIMIT " . BATCH_SIZE;
+        $qry = "SELECT * FROM " . $wpdb->prefix . "postmeta
+                WHERE meta_value LIKE '%\"WaitingProcessing\";b:1;%'
+                OR meta_value LIKE '%\"BulkProcessing\";b:1;%'
+                LIMIT " . BATCH_SIZE;
         $idList = $wpdb->get_results($qry);
 
         if(empty($idList)) { echo 'empty queue'; die; }
@@ -176,10 +181,20 @@ class WPShortPixel {
             $imagePath = get_attached_file($ID);
             $meta = wp_get_attachment_metadata($ID);
 
+            //check bulk processing
+            if(isset($bulkLog['toDo'])) {
+                if(array_key_exists($ID, $bulkLog['toDo'])) {
+                    unset($bulkLog['toDo'][$ID]);
+                    update_option('bulkProcessingLog', $bulkLog);
+                }
+            }
+
             $result = $this->_apiInterface->processImage($imageURL, $imagePath, $ID);
 
             if(is_string($result)) {
                 $meta['ShortPixelImprovement'] = $result;
+                $bulkLog['toDo'][$ID] = false;
+                update_option('bulkProcessingLog', $bulkLog);
                 die;
             }
 
@@ -195,26 +210,22 @@ class WPShortPixel {
             }
 
             unset($meta['ShortPixel']['WaitingProcessing']);
+
             if(isset($meta['ShortPixel']['BulkProcessing'])) {
                 unset($meta['ShortPixel']['BulkProcessing']);
             }
-
-            //check bulk processing
-            $bulkLog = get_option('bulkProcessingLog');
-            if(isset($bulkLog['toDo'])) {
-                if(array_key_exists($ID, $bulkLog['toDo'])) {
-                    unset($bulkLog['toDo'][$ID]);
-                }
-            }
-
-            if(empty($bulkLog['toDo'])) { delete_option('bulkProcessingLog'); }
-            else { update_option('bulkProcessingLog', $bulkLog); }
 
             $meta['ShortPixelImprovement'] = $result->PercentImprovement;
 
             wp_update_attachment_metadata($ID, $meta);
             echo "Processing done succesfully for image #{$ID}";
         }
+
+        if(empty($bulkLog['toDo'])) {
+            $bulkLog['running'] = false;
+        }
+
+        update_option('bulkProcessingLog', $bulkLog);
 
         die();
     }
@@ -285,7 +296,6 @@ class WPShortPixel {
         } catch(Exception $e) {
             //what to do, what to do?
         }
-
     }
 
     public function bulkOptimizeActionHandler($hook) {
@@ -296,7 +306,6 @@ class WPShortPixel {
                     //remove all ShortPixel data from metadata
                     foreach($_GET['media'] as $attachmentID) {
                         $meta = wp_get_attachment_metadata($attachmentID);
-                        $meta['ShortPixel']['WaitingProcessing'] = true;
                         $meta['ShortPixel']['BulkProcessing'] = true;
                         unset($meta['ShortPixelImprovement']);
                         wp_update_attachment_metadata($attachmentID, $meta);
@@ -323,6 +332,83 @@ class WPShortPixel {
     public function bulkProcesss() {
         echo '<h1>Bulk Image Optimisation by ShortPixel</h1>';
 
+        if(MUST_HAVE_KEY && $this->_verifiedKey == false) {
+            echo "<p>In order to start processing your images, you need to validate your API key in the ShortPixel Settings. If you don’t have an API Key, you can get one delivered to your inbox.</p>";
+            echo "<p>Don’t have an API Key yet? Get it now at <a href=\"https://shortpixel.com/wp-apikey\" target=\"_blank\">www.ShortPixel.com</a>, for free.</p>";
+            return;
+        }
+
+        $attachments = null;
+        $attachments = get_posts( array(
+            'numberposts' => -1,
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image'
+        ));
+
+        if($_GET['cancel']) {
+            delete_option('bulkProcessingLog');
+            foreach($attachments as $attachment) {
+                $meta = wp_get_attachment_metadata($attachment->ID);
+                if(isset($meta['ShortPixel']['BulkProcessing'])) unset($meta['ShortPixel']['BulkProcessing']);
+                wp_update_attachment_metadata($attachment->ID, $meta);
+            }
+        }
+
+        if($_POST["bulkProcess"]) {
+            $imageLog = array();
+            //remove all ShortPixel data from metadata
+            foreach($attachments as $attachment) {
+                $meta = wp_get_attachment_metadata($attachment->ID);
+                $meta['ShortPixel']['BulkProcessing'] = true;
+                wp_update_attachment_metadata($attachment->ID, $meta);
+                $imageLog[$attachment->ID] = false;
+            }
+            $bulkLog = array();
+            $bulkLog['running'] = true;
+            $bulkLog['toDo'] = $imageLog;
+            $bulkLog['total'] = count($imageLog);
+            update_option('bulkProcessingLog', $bulkLog);
+        }
+
+        $currentBulkProcessingStatus = get_option('bulkProcessingLog');
+
+        if($currentBulkProcessingStatus) {
+            if($currentBulkProcessingStatus['running']) {
+                    echo "<p>
+                        Bulk optimisation has started. It may take a while until we process all your images. <BR>The latest status of the processing will be displayed here every 30 seconds.
+                        In the meantime, you can continue using the admin as usual.<BR> However, <b>you musn’t close the WordPress admin</b>, or the bulk processing will stop.
+                      </p>";
+                    echo '
+                    <script type="text/javascript" >
+                        var bulkProcessingRunning = true;
+                     </script>
+                ';
+
+                    $imagesLeft = count($currentBulkProcessingStatus["toDo"]);
+                    $totalImages = $currentBulkProcessingStatus['total'];
+
+                    echo "<p>{$imagesLeft} out of {$totalImages} images left to process.</p>";
+
+                    echo '
+                    <a class="button button-secondary" href="' . get_admin_url() .  'upload.php">Media Library</a>
+                    <a class="button button-secondary" href="' . get_admin_url() .  'upload.php?page=wp-short-pixel-bulk&cancel=1">Cancel Processing</a>
+                ';
+            } else {
+                echo "<p>
+                        Bulk optimisation has successfully finished.
+                      </p>";
+                echo $this->getBulkProcessingForm(count($attachments));
+                delete_option(bulkProcessingLog);
+            }
+        } else {
+            echo $this->getBulkProcessingForm(count($attachments));
+            echo '
+                <script type="text/javascript" >
+                    var bulkProcessingRunning = false;
+                 </script>
+            ';
+        }
+
         echo '
             <script type="text/javascript" >
                 jQuery(document).ready(function() {
@@ -337,66 +423,6 @@ class WPShortPixel {
                 });
             </script>
         ';
-
-        if(MUST_HAVE_KEY && $this->_verifiedKey == false) {
-            echo "<p>In order to start processing your images, you need to validate your API key in the ShortPixel Settings. If you don’t have an API Key, you can get one delivered to your inbox.</p>";
-            echo "<p>Don’t have an API Key yet? Get it now at <a href=\"https://shortpixel.com/wp-apikey\" target=\"_blank\">www.ShortPixel.com</a>, for free.</p>";
-            return;
-        }
-
-        $attachments = null;
-        $attachments = get_posts( array(
-            'numberposts' => -1,
-            'post_type' => 'attachment',
-            'post_mime_type' => 'image'
-        ));
-
-        if($_POST["bulkProcess"]) {
-            $imageLog = array();
-            //remove all ShortPixel data from metadata
-            foreach($attachments as $attachment) {
-                $meta = wp_get_attachment_metadata($attachment->ID);
-                $meta['ShortPixel']['WaitingProcessing'] = true;
-                $meta['ShortPixel']['BulkProcessing'] = true;
-                wp_update_attachment_metadata($attachment->ID, $meta);
-                $imageLog[$attachment->ID] = false;
-            }
-            $bulkLog = array();
-            $bulkLog['running'] = true;
-            $bulkLog['toDo'] = $imageLog;
-            $bulkLog['total'] = count($imageLog);
-            update_option('bulkProcessingLog', $bulkLog);
-        }
-
-        $currentBulkProcessingStatus = get_option('bulkProcessingLog');
-
-        if($currentBulkProcessingStatus && $currentBulkProcessingStatus['running']) {
-            echo "<p>
-					Bulk optimisation has started. It may take a while until we process all your images. The latest status of the processing will be displayed here every 30 seconds. 
-					In the meantime, you can continue using the admin as usual. However, <b>you musn’t close the WordPress admin</b>, or the bulk processing will stop.
-                  </p>";
-            echo '
-                <script type="text/javascript" >
-                    var bulkProcessingRunning = true;
-                 </script>
-            ';
-
-            $imagesLeft = count($currentBulkProcessingStatus["toDo"]);
-            $totalImages = $currentBulkProcessingStatus['total'];
-
-            echo "<p>{$imagesLeft} out of {$totalImages} images left to process.</p>";
-
-            echo '
-                <a class="button button-secondary" href="' . get_admin_url() .  'upload.php">Media Library</a>
-            ';
-        } else {
-            echo $this->getBulkProcessingForm(count($attachments));
-            echo '
-                <script type="text/javascript" >
-                    var bulkProcessingRunning = false;
-                 </script>
-            ';
-        }
     }
 
     public function renderSettingsMenu() {
@@ -406,7 +432,7 @@ class WPShortPixel {
 
         if(isset($_POST['submit']) || isset($_POST['validate'])) {
             //handle API Key - common for submit and validate
-            $validityData = $this->getQuotaInformation($_POST['key']);
+            $validityData = $this->getQuotaInformation($_POST['key'], true);
             $this->_apiKey = $_POST['key'];
             $this->_apiInterface->setApiKey($this->_apiKey);
             update_option('wp-short-pixel-apiKey', $_POST['key']);
@@ -417,6 +443,7 @@ class WPShortPixel {
                 update_option('wp-short-pixel-verifiedKey', false);
                 $this->_verifiedKey = false;
             }
+
             //if save button - we process the rest of the form elements
             if(isset($_POST['submit'])) {
                 update_option('wp-short-pixel-compression', $_POST['compressionType']);
@@ -626,11 +653,16 @@ HTML;
         if($hook_suffix == 'plugins.php' && !$this->_verifiedKey) { echo  $noticeInvalidKeyContent; }
     }
 
-    public function getQuotaInformation($apiKey = null) {
+    public function getQuotaInformation($apiKey = null, $appendUserAgent = false) {
 
         if(is_null($apiKey)) { $apiKey = $this->_apiKey; }
 
         $requestURL = 'https://api.shortpixel.com/api-status.php?key='.$apiKey;
+
+        if($appendUserAgent) {
+            $requestURL .= '&useragent=' . urlencode($_SERVER['HTTP_USER_AGENT']);
+        }
+
         $args = array('timeout'=> SP_MAX_TIMEOUT, 'sslverify'   => false);
         $response = wp_remote_get($requestURL, $args);
 
