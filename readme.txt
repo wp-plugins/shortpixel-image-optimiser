@@ -4,11 +4,11 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-The ShortPixel WordPress plugin optimizes images automaticaly using both lossy and lossless compression, thus improving your website performance.
+The ShortPixel plugin reduces your images's size, making your website load faster than before. Image quality is preserved using advanced compression technology.
 
 == Description ==
 
@@ -44,25 +44,24 @@ Let's get ShortPixel plugin running on your WordPress website:
 = What happens to the existing images, when installing the ShortPixel plugin? = 
 
 Just installing the plugin won’t start the optimisation process on existing images. To begin optimising the images previously loaded on your website, you should:
-Go to Media Library, and select which of the existing images you want to optimise.
+
+* **Go to Media Library, and select which of the existing images you want to optimise.
+
 OR
-Use the Bulk ShortPixel option, to automatically optimise all your previous library.
 
-= What happens with my original images after they have been processed with ShortPixel? =
-
-Your images are automatically stored in a backup folder, on your hosting server. After optimisation, if you want to switch back to a certain original image, hit **Restore backup** in the Media Library. If you are happy with the ShortPixel optimised images, you can deactivate saving the backups in the plugin Settings.
+* **Use the Bulk ShortPixel option, to automatically optimise all your previous library.
 
 = Should I pick lossy or lossless optimisation? =
 
-This depends on your compression needs. Lossy has a better compression rate than lossless compression. The resulting image is not 100% identical with the original. Works well for photos taken with your camera.
+This depends on your compression needs. **Lossy** has a better compression rate than lossless compression. The resulting image is not 100% identical with the original. Works well for photos taken with your camera.
 
-With lossless compression, the shrunk image will be identical with the original and smaller in size. Use this when you do not want to loose any of the original image's details. Works best for technical drawings, clip art and comics.
+With **lossless** compression, the shrunk image will be indistinguishable from the original, and smaller in size. Use this when you do not want to loose any of the original image's details. Works best for technical drawings, clip art and comics.
 
-For more information about the difference read the <a href="http://en.wikipedia.org/wiki/Lossy_compression#Lossy_and_lossless_compression" target="_blank">Wiki article</a>.
+For more information about the difference read the <a href="http://en.wikipedia.org/wiki/Lossy_compression#Lossy_and_lossless_compression" target="_blank">Wiki article</a> on the lossy/lossless difference.
 
 = Why do I need an API key? =
 
-ShortPixel uses automated processes to crunch images. The API integrates in the WordPress dashboard of your website and processes both old and new images automatically.
+ShortPixel Image Optimiser uses automated processes to crunch images. The ShortPixel API integrates in the dashboard of your Wordpress website and processes both old and new images automatically.
 You can also use the API in your own applications, the <a href="https://shortpixel.com/api-docs">Documentation API</a> shows you how.
 
 = Where do I get my API key? =
@@ -71,23 +70,28 @@ To get your API key, you must <a href="https://shortpixel.com/wp-apikey">Sign up
 
 = Where do I use my API key? =
 
-You use the API key in the ShortPixel plugin Settings, don’t forget to click Save Settings. The same API can be used on multiple websites/blogs. 
+You use the API key in the ShortPixel plugin Settings (don’t forget to click Save Settings). The same API key can be used on multiple websites/blogs. 
 
-= What does bulk optimisation mean? =
+= What does Bulk Optimisation mean? =
 
-The bulk option lets ShortPixel optimise all your images at once (not one by one). You can do this in the Media > Bulk ShortPixel section by clicking on the Compress all your images button.
+The Bulk option makes ShortPixel optimise all your images at once (not one by one). You can do this in the Media > Bulk ShortPixel section by clicking on the **Compress all your images** button.
 
 = Are my images safe? =
 
-Yes, privacy is guaranteed. The ShortPixel automated encryption process doesn't allow anyone to view your photos.
+Yes, privacy is guaranteed. The ShortPixel encryption process doesn't allow anyone to view your photos.
+
+= What happens with my original images after they have been processed with ShortPixel? =
+
+Your images are automatically stored in a backup folder, on your hosting server. After optimisation, if you want to switch back to a certain original image, hit **Restore backup** in the Media Library. If you are happy with the ShortPixel optimised images, you can deactivate saving the backups in the plugin Settings.
 
 = What types of formats can be optimised? =
 
-For now, ShortPixel supports JPEG and PNG. Thumbnails are also optimised. Additional formats are scheduled for optimisation in the future. 
+For now, ShortPixel supports JPEG, PNG and GIF formats. Animated GIFs and thumbnails are also optimised. Additional formats are scheduled for optimisation in the future. 
 
 = I’m stuck. What do I do? =
 
-ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contact us</a>!
+The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contact us</a>!
+
 
 == Screenshots ==
 
@@ -100,6 +104,10 @@ ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Contac
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 1.5.1 = 
+
+* readme changes
 
 = 1.5.0 =
 
