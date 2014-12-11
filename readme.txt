@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.5.2
+Stable tag: 1.5.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,11 +45,11 @@ Let's get ShortPixel plugin running on your WordPress website:
 
 Just installing the plugin won’t start the optimisation process on existing images. To begin optimising the images previously loaded on your website, you should:
 
-* **Go to Media Library, and select which of the existing images you want to optimise.
+* Go to **Media Library**, and select which of the existing images you want to optimise.
 
 OR
 
-* **Use the Bulk ShortPixel option, to automatically optimise all your previous library.
+* Use the **Bulk ShortPixel** option, to automatically optimise all your previous library.
 
 = Should I pick lossy or lossless optimisation? =
 
