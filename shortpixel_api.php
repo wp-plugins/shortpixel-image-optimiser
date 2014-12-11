@@ -8,6 +8,7 @@ class shortpixel_api {
     private $_apiKey = '';
     private $_compressionType = '';
     private $_maxAttempts = 10;
+    private $_apiEndPoint = 'https://api.shortpixel.com/v1/reducer.php';
 
     public function setCompressionType($compressionType)
     {
@@ -42,11 +43,10 @@ class shortpixel_api {
     }
 
     public function doRequests($url, $filePath, $ID = null, $time = 0) {
-        $requestURL = 'https://api.shortpixel.com/reducer.php?key='.$this->_apiKey.'&lossy='.$this->_compressionType.'&url=';
-
+        $requestURL = $this->_apiEndPoint . '?key=' . $this->_apiKey . '&lossy=' . $this->_compressionType . '&url=';
         $requestURL = $requestURL . urlencode($url);
 
-        $args = array('timeout'=> SP_MAX_TIMEOUT);
+        $args = array('timeout'=> SP_MAX_TIMEOUT, 'sslverify' => false);
 
         $response = wp_remote_get($requestURL, $args);
 
@@ -72,6 +72,7 @@ class shortpixel_api {
         if(!$response) return $response;
 
         if($response['response']['code'] != 200) {
+            WPShortPixel::log("Response 200 OK");
             printf('Web service did not respond. Please try again later.');
             return false;
             //error
@@ -103,15 +104,51 @@ class shortpixel_api {
 
 
     public function handleSuccess($callData, $url, $filePath, $ID) {
-        $tempFile = download_url(str_replace('https://','http://',urldecode($callData->DownloadURL)));
+
+        if($this->_compressionType) {
+            //lossy
+            $correctFileSize = $callData->LossySize;
+            $tempFile = download_url(str_replace('https://','http://',urldecode($callData->LossyURL)));
+        } else {
+            //lossless
+            $correctFileSize = $callData->LoselessSize;
+            $tempFile = download_url(str_replace('https://','http://',urldecode($callData->LosslessURL)));
+        }
 
         if ( is_wp_error( $tempFile ) ) {
             @unlink($tempFile);
             return printf("Error downloading file (%s)", $tempFile->get_error_message());
+            die;
+        }
+
+        //check response so that download is OK
+        if(filesize($tempFile) != $correctFileSize) {
+            return printf("Error downloading file - incorrect file size");
+            die;
         }
 
         if (!file_exists($tempFile)) {
             return printf("Unable to locate downloaded file (%s)", $tempFile);
+            die;
+        }
+
+        //if backup is enabled
+        if(get_option('wp-short-backup_images')) {
+
+            if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
+                return printf("Backup folder does not exist and it could not be created");
+            }
+
+            $source = $filePath;
+            $destination = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($source);
+
+            if(is_writable(SP_BACKUP_FOLDER)) {
+                if(!file_exists($destination)) {
+                    @copy($source, $destination);
+                }
+            } else {
+               return printf("Backup folder exists but is not writable");
+            }
         }
 
         @unlink( $filePath );
@@ -127,7 +164,7 @@ class shortpixel_api {
             if(isset($callData->LossySize)) {
                 $savedSpace = $callData->OriginalSize - $callData->LossySize;
             } else {
-                $savedSpace = $callData->OriginalSize - $callData->SPSize;
+                $savedSpace = $callData->OriginalSize - $callData->LoselessSize;
             }
 
             update_option(
