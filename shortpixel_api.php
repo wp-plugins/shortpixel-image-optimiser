@@ -12,8 +12,7 @@ class shortpixel_api {
 
     public function setCompressionType($compressionType)
     {
-        if($compressionType == 'lossy') { $this->_compressionType = 1; }
-        else { $this->_compressionType = 0; }
+        $this->_compressionType = $compressionType;
     }
 
     public function getCompressionType()
@@ -42,12 +41,11 @@ class shortpixel_api {
         $this->processImage($url, $filePath, $ID, $time);
     }
 
-    public function doRequests($url, $filePath, $ID = null, $time = 0) {
+    public function doRequests($url, $filePath, $ID = null) {
         $requestURL = $this->_apiEndPoint . '?key=' . $this->_apiKey . '&lossy=' . $this->_compressionType . '&url=';
         $requestURL = $requestURL . urlencode($url);
 
         $args = array('timeout'=> SP_MAX_TIMEOUT, 'sslverify' => false);
-
         $response = wp_remote_get($requestURL, $args);
 
         if(is_object($response) && get_class($response) == 'WP_Error') {
@@ -65,9 +63,18 @@ class shortpixel_api {
     }
 
     //handles the processing of the image using the ShortPixel API
-    public function processImage($url, $filePath, $ID = null, $time = 0) {
+    public function processImage($url, $filePath, $ID = null, $startTime = 0) {
 
-        $response = $this->doRequests($url, $filePath, $ID, $time);
+        if($startTime == 0) { $startTime = time(); }
+        if(time() - $startTime > MAX_EXECUTION_TIME) {
+            $meta = wp_get_attachment_metadata($ID);
+            $meta['ShortPixelImprovement'] = 'Could not determine compression';
+            unset($meta['ShortPixel']['WaitingProcessing']);
+            wp_update_attachment_metadata($ID, $meta);
+            return 'Could not determine compression';
+        }
+
+        $response = $this->doRequests($url, $filePath, $ID);
 
         if(!$response) return $response;
 
@@ -75,7 +82,6 @@ class shortpixel_api {
             WPShortPixel::log("Response 200 OK");
             printf('Web service did not respond. Please try again later.');
             return false;
-            //error
         }
 
         $data = $this->parseResponse($response);
@@ -84,7 +90,7 @@ class shortpixel_api {
             case 1:
                 //handle image has been scheduled
                 sleep(1);
-                return $this->processImage($url, $filePath, $ID, $time);
+                return $this->processImage($url, $filePath, $ID, $startTime);
                 break;
             case 2:
                 //handle image has been processed
@@ -96,7 +102,7 @@ class shortpixel_api {
                 return 'Wrong API Key</br>';
             default:
                 //handle error
-                return 'An error occurred while processing this image. Please try uploading it again.</br>';
+                return 'An error occurred while processing this image. Please try uploading it again.</br>'.$data->Status->Code;
         }
 
         return $data;
@@ -117,18 +123,18 @@ class shortpixel_api {
 
         if ( is_wp_error( $tempFile ) ) {
             @unlink($tempFile);
-            return printf("Error downloading file (%s)", $tempFile->get_error_message());
+            return sprintf("Error downloading file (%s)", $tempFile->get_error_message());
             die;
         }
 
         //check response so that download is OK
         if(filesize($tempFile) != $correctFileSize) {
-            return printf("Error downloading file - incorrect file size");
+            return sprintf("Error downloading file - incorrect file size");
             die;
         }
 
         if (!file_exists($tempFile)) {
-            return printf("Unable to locate downloaded file (%s)", $tempFile);
+            return sprintf("Unable to locate downloaded file (%s)", $tempFile);
             die;
         }
 
@@ -136,7 +142,7 @@ class shortpixel_api {
         if(get_option('wp-short-backup_images')) {
 
             if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
-                return printf("Backup folder does not exist and it could not be created");
+                return sprintf("Backup folder does not exist and it could not be created");
             }
 
             $source = $filePath;
@@ -147,7 +153,7 @@ class shortpixel_api {
                     @copy($source, $destination);
                 }
             } else {
-               return printf("Backup folder exists but is not writable");
+               return sprintf("Backup folder exists but is not writable");
             }
         }
 

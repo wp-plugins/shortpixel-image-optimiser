@@ -4,11 +4,11 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.0
-Stable tag: 1.5.3
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-The ShortPixel plugin reduces your images's size, making your website load faster than before. Image quality is preserved using advanced compression technology.
+The ShortPixel plugin reduces the images' size making your website load faster. Image quality is preserved using advanced compression technology.
 
 == Description ==
 
@@ -22,7 +22,7 @@ ShortPixel uses powerful algorithms that enable your website to load faster, use
 * **Up to 90% compression rate:** with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences.
 * **Supported formats:** JPG, PNG, GIF (including animated): optimisation applies to JPG, PNG and static GIF. NEW UPDATE: we introduced optimisation for animated GIFs.
 * **Backup and restore originals:** if you ever want to return to the original version, images are automatically stored in a backup folder on your hosting servers.
-* **Batch image optimisation:**  Bulk Optimisation tool now available. Crunch your past image gallery, and downsize your website in minutes.
+* **Bulk image optimisation:** Crunch your image gallery, and downsize your website. This feature may take up to several hours, depending on the number and size of existing images. 
 
 On the https://ShortPixel.com website, we offer free access to the ShrtPixel API which you can use for further image optimisation purposes.
 
@@ -72,9 +72,11 @@ To get your API key, you must <a href="https://shortpixel.com/wp-apikey">Sign up
 
 You use the API key in the ShortPixel plugin Settings (don’t forget to click Save Settings). The same API key can be used on multiple websites/blogs. 
 
-= What does Bulk Optimisation mean? =
+= How does Bulk Optimisation work? = 
 
 The Bulk option makes ShortPixel optimise all your images at once (not one by one). You can do this in the Media > Bulk ShortPixel section by clicking on the **Compress all your images** button.
+
+The batch optimisation may work slower, depending on your existing image gallery. Please be patient and do not close the Wordpress admin while you are rolling the Bulk Processing on your media gallery.
 
 = Are my images safe? =
 
@@ -104,6 +106,13 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 1.6.0 =
+
+* images' requests for optimization are sent for all sizes upon image upload in media gallery
+* non-image (e.g. PDF files) are ignored now @ bulk processing
+* bulk optimization improved & some bugs fixed.
+* FAQ/Description small changes
 
 = 1.5.1 = 
 
