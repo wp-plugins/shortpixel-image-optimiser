@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.6.0
+ * Version: 1.6.1
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -11,7 +11,7 @@
 require_once('shortpixel_api.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
 
-define('SP_DEBUG', true);
+define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'ShortpixelBackups');
@@ -23,7 +23,7 @@ class WPShortPixel {
 
     private $_apiInterface = null;
     private $_apiKey = '';
-    private $_compressionType = '';
+    private $_compressionType = 1;
     private $_processThumbnails = 1;
     private $_backupImages = 1;
         private $_verifiedKey = false;
@@ -75,6 +75,8 @@ class WPShortPixel {
 
         if(get_option('wp-short-pixel-compression') != false) {
             $this->_compressionType = get_option('wp-short-pixel-compression');
+        } else {
+            add_option('wp-short-pixel-compression', $this->_compressionType, '', 'yes');
         }
 
         if(get_option('wp-short-process_thumbnails') != false) {
@@ -115,7 +117,7 @@ class WPShortPixel {
                 var data = { 'action': 'my_action' };
                 // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
                 jQuery.post(ajaxurl, data, function(response) {
-                    if(response == 'empty queue' || response == 'error processing image') {
+                    if(response.search('empty queue') >= 0 || response.search('error processing image') >= 0) {
                         console.log('Queue is empty');
                     } else {
                         console.log('Server response: ' + response);
@@ -177,8 +179,6 @@ class WPShortPixel {
             die();
         }
 
-        $bulkLog = get_option('bulkProcessingLog');
-
         //query database for first found entry that needs processing
         global  $wpdb;
         $qry = "SELECT * FROM " . $wpdb->prefix . "postmeta
@@ -195,20 +195,10 @@ class WPShortPixel {
             $imagePath = get_attached_file($ID);
             $meta = wp_get_attachment_metadata($ID);
 
-            //check bulk processing
-            if(isset($bulkLog) && is_array($bulkLog)) {
-                if(array_key_exists($ID, $bulkLog)) {
-                    unset($bulkLog[$ID]);
-                    update_option('bulkProcessingLog', $bulkLog);
-                }
-            }
-
             $result = $this->_apiInterface->processImage($imageURL, $imagePath, $ID);
 
             if(is_string($result)) {
                 $meta['ShortPixelImprovement'] = $result;
-                $bulkLog[$ID] = false;
-                update_option('bulkProcessingLog', $bulkLog);
                 echo "error processing image";
                 die();
             }
@@ -235,9 +225,6 @@ class WPShortPixel {
             wp_update_attachment_metadata($ID, $meta);
             echo "Processing done succesfully for image #{$ID}";
         }
-
-        if(empty($bulkLog)) { $bulkLog = time(); }
-        update_option('bulkProcessingLog', $bulkLog);
 
         die();
     }
@@ -367,7 +354,6 @@ class WPShortPixel {
         ));
 
         if($_GET['cancel']) {
-            delete_option('bulkProcessingLog');
             foreach($attachments as $attachment) {
                 $meta = wp_get_attachment_metadata($attachment->ID);
                 if(isset($meta['ShortPixel']['BulkProcessing'])) unset($meta['ShortPixel']['BulkProcessing']);
@@ -379,19 +365,21 @@ class WPShortPixel {
             $imageLog = array();
             //remove all ShortPixel data from metadata
             foreach($attachments as $attachment) {
+                if(exif_imagetype(get_attached_file($attachment->ID)) == false) continue;
                 $meta = wp_get_attachment_metadata($attachment->ID);
                 $meta['ShortPixel']['BulkProcessing'] = true;
                 wp_update_attachment_metadata($attachment->ID, $meta);
-                $imageLog[$attachment->ID] = false;
             }
-
-            update_option('bulkProcessingLog', $imageLog);
+            update_option('bulkProcessingStatus', 'running');
         }
 
-        $bulkProcessingLog = get_option('bulkProcessingLog');
+        global  $wpdb;
+        $qry = "SELECT * FROM " . $wpdb->prefix . "postmeta
+                WHERE meta_value LIKE '%\"BulkProcessing\";b:1;%'";
+        $idList = $wpdb->get_results($qry);
 
-        if(!empty($bulkProcessingLog)) {
-            if(is_array($bulkProcessingLog)) {
+        if(!empty($idList)) {
+            if(is_array($idList)) {
                     echo "<p>
                         Bulk optimisation has started. It may take a while until we process all your images. <BR>The latest status of the processing will be displayed here every 30 seconds.
                         In the meantime, you can continue using the admin as usual.<BR> However, <b>you musn’t close the WordPress admin</b>, or the bulk processing will stop.
@@ -402,7 +390,7 @@ class WPShortPixel {
                      </script>
                 ';
 
-                    $imagesLeft = count($bulkProcessingLog);
+                    $imagesLeft = count($idList);
                     $totalImages = count($attachments);
 
                     echo "<p>{$imagesLeft} out of {$totalImages} images left to process.</p>";
@@ -411,13 +399,14 @@ class WPShortPixel {
                     <a class="button button-secondary" href="' . get_admin_url() .  'upload.php">Media Library</a>
                     <a class="button button-secondary" href="' . get_admin_url() .  'upload.php?page=wp-short-pixel-bulk&cancel=1">Cancel Processing</a>
                 ';
-            } else {
-                echo "<p>Bulk optimisation was successful. ShortPixel has finished optimising all your images.</p>
-                      <p>Go to the ShortPixel <a href='" . get_admin_url() . "options-general.php?page=wp-shortpixel#facts'>Facts &amp; Figures</a> and see your website's optimised stats (in Settings > ShortPixel). </p>";
-                echo $this->getBulkProcessingForm(count($attachments));
-                //delete_option('bulkProcessingLog');
             }
         } else {
+            $bulkProcessingStatus = get_option('bulkProcessingStatus');
+            if(isset($bulkProcessingStatus) && $bulkProcessingStatus == 'running') {
+                echo "<p>Bulk optimisation was successful. ShortPixel has finished optimising all your images.</p>
+                      <p>Go to the ShortPixel <a href='" . get_admin_url() . "options-general.php?page=wp-shortpixel#facts'>Facts &amp; Figures</a> and see your website's optimised stats (in Settings > ShortPixel). </p>";
+                delete_option('bulkProcessingStatus');
+            }
             echo $this->getBulkProcessingForm(count($attachments));
             echo '
                 <script type="text/javascript" >
@@ -526,12 +515,12 @@ Lossless compression: the shrunk image will be identical with the original and s
 </th><td>
 HTML;
 
-            if($this->_compressionType == 'lossless') {
-                $formHTML .= '<input type="radio" name="compressionType" value="1" >Lossy</br></br>';
-                $formHTML .= '<input type="radio" name="compressionType" value="0" checked>Lossless';
-            } else {
+            if($this->_compressionType == 1) {
                 $formHTML .= '<input type="radio" name="compressionType" value="1" checked>Lossy</br></br>';
                 $formHTML .= '<input type="radio" name="compressionType" value="0" >Lossless';
+            } else {
+                $formHTML .= '<input type="radio" name="compressionType" value="1">Lossy</br></br>';
+                $formHTML .= '<input type="radio" name="compressionType" value="0" checked>Lossless';
             }
 
             $formHTML .= <<<HTML

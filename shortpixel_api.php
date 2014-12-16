@@ -64,7 +64,6 @@ class shortpixel_api {
 
     //handles the processing of the image using the ShortPixel API
     public function processImage($url, $filePath, $ID = null, $startTime = 0) {
-
         if($startTime == 0) { $startTime = time(); }
         if(time() - $startTime > MAX_EXECUTION_TIME) {
             $meta = wp_get_attachment_metadata($ID);
@@ -102,7 +101,7 @@ class shortpixel_api {
                 return 'Wrong API Key</br>';
             default:
                 //handle error
-                return 'An error occurred while processing this image. Please try uploading it again.</br>'.$data->Status->Code;
+                return 'An error occurred while processing this image. Please try uploading it again.</br> ' . print_r(array($data, $url, $filePath, $ID), true);
         }
 
         return $data;
