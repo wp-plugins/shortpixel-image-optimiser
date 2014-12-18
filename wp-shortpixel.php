@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.6.1
+ * Version: 1.6.2
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -117,7 +117,7 @@ class WPShortPixel {
                 var data = { 'action': 'my_action' };
                 // since 2.8 ajaxurl is always defined in the admin header and points to admin-ajax.php
                 jQuery.post(ajaxurl, data, function(response) {
-                    if(response.search('empty queue') >= 0 || response.search('error processing image') >= 0) {
+                    if(response.search('Empty queue') >= 0 || response.search('Error processing image') >= 0) {
                         console.log('Queue is empty');
                     } else {
                         console.log('Server response: ' + response);
@@ -187,7 +187,7 @@ class WPShortPixel {
                 LIMIT " . BATCH_SIZE;
         $idList = $wpdb->get_results($qry);
 
-        if(empty($idList)) { echo 'empty queue'; die; }
+        if(empty($idList)) { echo 'Empty queue'; die; }
 
         foreach($idList as $post) {
             $ID = $post->post_id;
@@ -195,12 +195,23 @@ class WPShortPixel {
             $imagePath = get_attached_file($ID);
             $meta = wp_get_attachment_metadata($ID);
 
+            //check if image is public
+            if(wp_remote_retrieve_response_code($imageURL) > 400) {
+                if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
+                if(isset($met['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
+                wp_update_attachment_metadata($ID, $meta);
+                die;
+            }
+
             $result = $this->_apiInterface->processImage($imageURL, $imagePath, $ID);
 
             if(is_string($result)) {
+                if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
+                if(isset($meta['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
                 $meta['ShortPixelImprovement'] = $result;
-                echo "error processing image";
-                die();
+                wp_update_attachment_metadata($ID, $meta);
+                echo "Error processing image: " . $result;
+                die;
             }
 
             $processThumbnails = get_option('wp-short-process_thumbnails');
@@ -435,18 +446,36 @@ class WPShortPixel {
         if ( !current_user_can( 'manage_options' ) )  {
             wp_die('You do not have sufficient permissions to access this page.');
         }
+        echo '<h1>ShortPixel Image Optimiser Settings</h1>';
+        echo '<p>
+                <a href="https://shortpixel.com">ShortPixel.com</a> |
+                <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/">Installation </a> |
+                <a href="https://wordpress.org/support/plugin/shortpixel-image-optimiser">Support </a>
+              </p>';
+        echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimisation Tool</a>.</p>';
+
+        $noticeHTML = "<br/><div style=\"background-color: #fff; border-left: 4px solid %s; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px;\"><p>%s</p></div>";
 
         if(isset($_POST['submit']) || isset($_POST['validate'])) {
             //handle API Key - common for submit and validate
             $_POST['key'] = trim($_POST['key']);
             $validityData = $this->getQuotaInformation($_POST['key'], true);
+
             $this->_apiKey = $_POST['key'];
             $this->_apiInterface->setApiKey($this->_apiKey);
             update_option('wp-short-pixel-apiKey', $_POST['key']);
             if($validityData['APIKeyValid']) {
+                if(isset($_POST['validate'])) {
+                    //display notification
+                    printf($noticeHTML, '#7ad03a', 'API Key valid!');
+                }
                 update_option('wp-short-pixel-verifiedKey', true);
                 $this->_verifiedKey = true;
             } else {
+                if(isset($_POST['validate'])) {
+                    //display notification
+                    printf($noticeHTML, '#dd3d36', $validityData["Message"]);
+                }
                 update_option('wp-short-pixel-verifiedKey', false);
                 $this->_verifiedKey = false;
             }
@@ -481,14 +510,6 @@ class WPShortPixel {
         $checkedBackupImages = '';
         if($this->_backupImages) { $checkedBackupImages = 'checked'; }
 
-        echo '<h1>ShortPixel Image Optimiser Settings</h1>';
-        echo '<p>
-                <a href="https://shortpixel.com">ShortPixel.com</a> |
-                <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/">Installation </a> |
-                <a href="https://wordpress.org/support/plugin/shortpixel-image-optimiser">Support </a>
-              </p>';
-        echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimisation Tool</a>.</p>';
-        
         $formHTML = <<< HTML
 <form name='wp_shortpixel_options' action=''  method='post' id='wp_shortpixel_options'>
 <table class="form-table">
@@ -633,35 +654,6 @@ HTML;
     }
 
     public function displayNotice() {
-        global $hook_suffix;
-
-        $divHeader = '<br/><div class="updated">';
-        $divWarningHeader = '<br/><div class="update-nag">';
-        $divFooter = '</div>';
-
-        $noticeInvalidKeyContent = '
-        <div style="background-color: #FFFFFF; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px; margin: 15px 0; ">
-            <p>
-                <a href="options-general.php?page=wp-shortpixel">Activate your ShortPixel plugin.</a>
-                Get an API key <a href="https://shortpixel.com/wp-apikey" target="_blank">here</a>. Sign up, it’s free.
-           </p>
-        </div>
-        ';
-        $noticeWrongAPIKeyContent = '<p>API Key invalid!</p>';
-        $noticeCorrectAPIKeyContent = '<p>API Key valid!</p>';
-
-        if($hook_suffix == 'settings_page_wp-shortpixel' && !empty($_POST)) {
-            $keyCheckData = $this->getQuotaInformation($_POST['key']);
-
-            if(!isset($_POST['validate'])) return;
-
-            if($keyCheckData['APIKeyValid']) {
-                echo $divHeader . $noticeCorrectAPIKeyContent . $divFooter;
-            } else {
-                echo $divWarningHeader . $noticeWrongAPIKeyContent . $divFooter;
-            }
-        }
-        if($hook_suffix == 'plugins.php' && !$this->_verifiedKey) { echo  $noticeInvalidKeyContent; }
     }
 
     public function getQuotaInformation($apiKey = null, $appendUserAgent = false) {
@@ -679,6 +671,7 @@ HTML;
 
         $defaultData = array(
             "APIKeyValid" => false,
+            "Message" => '',
             "APICallsMade" => 'Information unavailable. Please check your API key.',
             "APICallsQuota" => 'Information unavailable. Please check your API key.');
 
@@ -695,7 +688,10 @@ HTML;
 
         if(empty($data)) { return $defaultData; }
 
-        if($data->Status->Code == '-401') { return $defaultData; }
+        if($data->Status->Code != 2) {
+            $defaultData['Message'] = $data->Status->Message;
+            return $defaultData;
+        }
 
         return array(
             "APIKeyValid" => true,

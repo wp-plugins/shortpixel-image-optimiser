@@ -101,7 +101,7 @@ class shortpixel_api {
                 return 'Wrong API Key</br>';
             default:
                 //handle error
-                return 'An error occurred while processing this image. Please try uploading it again.</br> ' . print_r(array($data, $url, $filePath, $ID), true);
+                return $data->Status->Message;
         }
 
         return $data;
@@ -113,11 +113,17 @@ class shortpixel_api {
         if($this->_compressionType) {
             //lossy
             $correctFileSize = $callData->LossySize;
-            $tempFile = download_url(str_replace('https://','http://',urldecode($callData->LossyURL)));
+            $tempFile = download_url(urldecode($callData->LossyURL));
+            if(is_wp_error( $tempFile )) {
+                $tempFile = download_url(str_replace('https://', 'http://', urldecode($callData->LossyURL)));
+            }
         } else {
             //lossless
             $correctFileSize = $callData->LoselessSize;
-            $tempFile = download_url(str_replace('https://','http://',urldecode($callData->LosslessURL)));
+            $tempFile = download_url(urldecode($callData->LosslessURL));
+            if(is_wp_error( $tempFile )) {
+                $tempFile = download_url(str_replace('https://', 'http://', urldecode($callData->LosslessURL)));
+            }
         }
 
         if ( is_wp_error( $tempFile ) ) {
