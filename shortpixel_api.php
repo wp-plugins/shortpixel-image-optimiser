@@ -8,11 +8,11 @@ class shortpixel_api {
     private $_apiKey = '';
     private $_compressionType = '';
     private $_maxAttempts = 10;
+    private $_apiEndPoint = 'https://api.shortpixel.com/v1/reducer.php';
 
     public function setCompressionType($compressionType)
     {
-        if($compressionType == 'lossy') { $this->_compressionType = 1; }
-        else { $this->_compressionType = 0; }
+        $this->_compressionType = $compressionType;
     }
 
     public function getCompressionType()
@@ -41,13 +41,11 @@ class shortpixel_api {
         $this->processImage($url, $filePath, $ID, $time);
     }
 
-    public function doRequests($url, $filePath, $ID = null, $time = 0) {
-        $requestURL = 'https://api.shortpixel.com/reducer.php?key='.$this->_apiKey.'&lossy='.$this->_compressionType.'&url=';
-
+    public function doRequests($url, $filePath, $ID = null) {
+        $requestURL = $this->_apiEndPoint . '?key=' . $this->_apiKey . '&lossy=' . $this->_compressionType . '&url=';
         $requestURL = $requestURL . urlencode($url);
 
-        $args = array('timeout'=> SP_MAX_TIMEOUT);
-
+        $args = array('timeout'=> SP_MAX_TIMEOUT, 'sslverify' => false);
         $response = wp_remote_get($requestURL, $args);
 
         if(is_object($response) && get_class($response) == 'WP_Error') {
@@ -65,16 +63,24 @@ class shortpixel_api {
     }
 
     //handles the processing of the image using the ShortPixel API
-    public function processImage($url, $filePath, $ID = null, $time = 0) {
+    public function processImage($url, $filePath, $ID = null, $startTime = 0) {
+        if($startTime == 0) { $startTime = time(); }
+        if(time() - $startTime > MAX_EXECUTION_TIME) {
+            $meta = wp_get_attachment_metadata($ID);
+            $meta['ShortPixelImprovement'] = 'Could not determine compression';
+            unset($meta['ShortPixel']['WaitingProcessing']);
+            wp_update_attachment_metadata($ID, $meta);
+            return 'Could not determine compression';
+        }
 
-        $response = $this->doRequests($url, $filePath, $ID, $time);
+        $response = $this->doRequests($url, $filePath, $ID);
 
         if(!$response) return $response;
 
         if($response['response']['code'] != 200) {
+            WPShortPixel::log("Response 200 OK");
             printf('Web service did not respond. Please try again later.');
             return false;
-            //error
         }
 
         $data = $this->parseResponse($response);
@@ -83,7 +89,7 @@ class shortpixel_api {
             case 1:
                 //handle image has been scheduled
                 sleep(1);
-                return $this->processImage($url, $filePath, $ID, $time);
+                return $this->processImage($url, $filePath, $ID, $startTime);
                 break;
             case 2:
                 //handle image has been processed
@@ -95,7 +101,7 @@ class shortpixel_api {
                 return 'Wrong API Key</br>';
             default:
                 //handle error
-                return 'An error occurred while processing this image. Please try uploading it again.</br>';
+                return $data->Status->Message;
         }
 
         return $data;
@@ -103,15 +109,57 @@ class shortpixel_api {
 
 
     public function handleSuccess($callData, $url, $filePath, $ID) {
-        $tempFile = download_url(str_replace('https://','http://',urldecode($callData->DownloadURL)));
+
+        if($this->_compressionType) {
+            //lossy
+            $correctFileSize = $callData->LossySize;
+            $tempFile = download_url(urldecode($callData->LossyURL));
+            if(is_wp_error( $tempFile )) {
+                $tempFile = download_url(str_replace('https://', 'http://', urldecode($callData->LossyURL)));
+            }
+        } else {
+            //lossless
+            $correctFileSize = $callData->LoselessSize;
+            $tempFile = download_url(urldecode($callData->LosslessURL));
+            if(is_wp_error( $tempFile )) {
+                $tempFile = download_url(str_replace('https://', 'http://', urldecode($callData->LosslessURL)));
+            }
+        }
 
         if ( is_wp_error( $tempFile ) ) {
             @unlink($tempFile);
-            return printf("Error downloading file (%s)", $tempFile->get_error_message());
+            return sprintf("Error downloading file (%s)", $tempFile->get_error_message());
+            die;
+        }
+
+        //check response so that download is OK
+        if(filesize($tempFile) != $correctFileSize) {
+            return sprintf("Error downloading file - incorrect file size");
+            die;
         }
 
         if (!file_exists($tempFile)) {
-            return printf("Unable to locate downloaded file (%s)", $tempFile);
+            return sprintf("Unable to locate downloaded file (%s)", $tempFile);
+            die;
+        }
+
+        //if backup is enabled
+        if(get_option('wp-short-backup_images')) {
+
+            if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
+                return sprintf("Backup folder does not exist and it could not be created");
+            }
+
+            $source = $filePath;
+            $destination = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($source);
+
+            if(is_writable(SP_BACKUP_FOLDER)) {
+                if(!file_exists($destination)) {
+                    @copy($source, $destination);
+                }
+            } else {
+               return sprintf("Backup folder exists but is not writable");
+            }
         }
 
         @unlink( $filePath );
@@ -127,7 +175,7 @@ class shortpixel_api {
             if(isset($callData->LossySize)) {
                 $savedSpace = $callData->OriginalSize - $callData->LossySize;
             } else {
-                $savedSpace = $callData->OriginalSize - $callData->SPSize;
+                $savedSpace = $callData->OriginalSize - $callData->LoselessSize;
             }
 
             update_option(
