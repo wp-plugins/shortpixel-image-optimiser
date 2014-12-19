@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.6.2
+ * Version: 1.6.3
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -44,7 +44,6 @@ class WPShortPixel {
         //add settings page
         add_action( 'admin_menu', array( &$this, 'registerSettingsPage' ) );
         add_action( 'admin_menu', array( &$this, 'registerAdminPage' ) );
-        add_action( 'admin_notices', array( &$this, 'displayNotice' ) );
         add_action( 'delete_attachment', array( &$this, 'handleDeleteAttachmentInBackup' ) );
 
         //automatic optimization
@@ -373,7 +372,6 @@ class WPShortPixel {
         }
 
         if($_POST["bulkProcess"]) {
-            $imageLog = array();
             //remove all ShortPixel data from metadata
             foreach($attachments as $attachment) {
                 if(exif_imagetype(get_attached_file($attachment->ID)) == false) continue;
@@ -381,6 +379,24 @@ class WPShortPixel {
                 $meta['ShortPixel']['BulkProcessing'] = true;
                 wp_update_attachment_metadata($attachment->ID, $meta);
             }
+
+            //break this in separate foreach in order to easily comment it out if performance issues
+//            foreach($attachments as $attachment) {
+//                if(exif_imagetype(get_attached_file($attachment->ID)) == false) continue;
+//                $meta = wp_get_attachment_metadata($attachment->ID);
+//                $url = wp_get_attachment_url($attachment->ID);
+//                $path = get_attached_file($attachment->ID);
+//                $this->_apiInterface->doRequests($url, $path, $attachment->ID);
+//
+//                if($this->_processThumbnails && !empty($meta['sizes'])) {
+//                    foreach($meta['sizes'] as $thumbnailInfo) {
+//                        $thumbURL = str_replace(basename($url), $thumbnailInfo['file'], $url);
+//                        $thumbPath = str_replace(basename($path), $thumbnailInfo['file'], $path);
+//                        $this->_apiInterface->doRequests($thumbURL, $thumbPath);
+//                    }
+//                }
+//            }
+
             update_option('bulkProcessingStatus', 'running');
         }
 
@@ -653,8 +669,6 @@ Currently, you have {$imageCount} images in your library. </br>
 HTML;
     }
 
-    public function displayNotice() {
-    }
 
     public function getQuotaInformation($apiKey = null, $appendUserAgent = false) {
 
@@ -669,9 +683,13 @@ HTML;
         $args = array('timeout'=> SP_MAX_TIMEOUT, 'sslverify'   => false);
         $response = wp_remote_get($requestURL, $args);
 
+        if(is_wp_error( $response )) {
+            $response = wp_remote_get(str_replace('https://', 'http://', $requestURL), $args);
+        }
+
         $defaultData = array(
             "APIKeyValid" => false,
-            "Message" => '',
+            "Message" => 'API Key could not be validated. Could not connect Shortpixel service.',
             "APICallsMade" => 'Information unavailable. Please check your API key.',
             "APICallsQuota" => 'Information unavailable. Please check your API key.');
 
