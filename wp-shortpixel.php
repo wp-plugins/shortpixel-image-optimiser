@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.6.4
+ * Version: 1.6.6
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -408,8 +408,16 @@ class WPShortPixel {
         if(!empty($idList)) {
             if(is_array($idList)) {
                     echo "<p>
-                        Bulk optimisation has started. It may take a while until we process all your images. <BR>The latest status of the processing will be displayed here every 30 seconds.
-                        In the meantime, you can continue using the admin as usual.<BR> However, <b>you musn’t close the WordPress admin</b>, or the bulk processing will stop.
+                        Bulk optimisation has started. This process will take some time, depending on the number of images in your library. <BR>Do not worry about the slow speed, it is a necessary measure in order not to interfere with the normal functioning of your site.<BR><BR>
+                        This is a brief estimation of the bulk processing times:<BR>
+						1 to 100 images < 1 hour <BR>
+						100 to 500 images < 4 hours<BR>
+						500 to 1000 images < 8 hours<BR>
+						over 1000 images > 12 hours or more<BR><BR>
+                        
+                        The latest status of the processing will be displayed here every 30 seconds.<BR>
+						In the meantime, you can continue using the admin as usual.<BR> 
+						However, <b>you musn’t close the WordPress admin</b>, or the bulk processing will stop.
                       </p>";
                     echo '
                     <script type="text/javascript" >
@@ -674,14 +682,17 @@ HTML;
 
         if(is_null($apiKey)) { $apiKey = $this->_apiKey; }
 
-        $requestURL = 'https://api.shortpixel.com/v1/api-status.php?key='.$apiKey;
+        $requestURL = 'https://api.shortpixel.com/v1/api-status.php';
+        $args = array('timeout'=> SP_MAX_TIMEOUT,
+                      'sslverify'   => false,
+                      'body' => array('key' => $apiKey)
+        );
 
         if($appendUserAgent) {
-            $requestURL .= '&useragent=' . urlencode($_SERVER['HTTP_USER_AGENT']);
+            $args['body']['useragent'] = urlencode($_SERVER['HTTP_USER_AGENT']);
         }
 
-        $args = array('timeout'=> SP_MAX_TIMEOUT, 'sslverify'   => false);
-        $response = wp_remote_get($requestURL, $args);
+        $response = wp_remote_post($requestURL, $args);
 
         if(is_wp_error( $response )) {
             $response = wp_remote_get(str_replace('https://', 'http://', $requestURL), $args);
