@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 1.6.6
+ * Version: 1.6.7
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -150,7 +150,7 @@ class WPShortPixel {
             self::log("Processing image id {$ID}");
             $url = wp_get_attachment_url($ID);
             $path = get_attached_file($ID);
-            if(exif_imagetype($path) != false) {
+            if(self::isImage($path) != false) {
                 $this->_apiInterface->doRequests($url, $path, $ID);
 
                 //send request for thumbs as well
@@ -306,7 +306,7 @@ class WPShortPixel {
     public function handleDeleteAttachmentInBackup($ID) {
         $uploadFilePath = get_attached_file($ID);
         $meta = wp_get_attachment_metadata($ID);
-        if(exif_imagetype($uploadFilePath) != false) {
+        if(self::isImage($uploadFilePath) != false) {
             try {
                 //main file
                 @unlink(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($uploadFilePath));
@@ -374,28 +374,11 @@ class WPShortPixel {
         if($_POST["bulkProcess"]) {
             //remove all ShortPixel data from metadata
             foreach($attachments as $attachment) {
-                if(exif_imagetype(get_attached_file($attachment->ID)) == false) continue;
+                if(self::isImage(get_attached_file($attachment->ID)) == false) continue;
                 $meta = wp_get_attachment_metadata($attachment->ID);
                 $meta['ShortPixel']['BulkProcessing'] = true;
                 wp_update_attachment_metadata($attachment->ID, $meta);
             }
-
-            //break this in separate foreach in order to easily comment it out if performance issues
-//            foreach($attachments as $attachment) {
-//                if(exif_imagetype(get_attached_file($attachment->ID)) == false) continue;
-//                $meta = wp_get_attachment_metadata($attachment->ID);
-//                $url = wp_get_attachment_url($attachment->ID);
-//                $path = get_attached_file($attachment->ID);
-//                $this->_apiInterface->doRequests($url, $path, $attachment->ID);
-//
-//                if($this->_processThumbnails && !empty($meta['sizes'])) {
-//                    foreach($meta['sizes'] as $thumbnailInfo) {
-//                        $thumbURL = str_replace(basename($url), $thumbnailInfo['file'], $url);
-//                        $thumbPath = str_replace(basename($path), $thumbnailInfo['file'], $path);
-//                        $this->_apiInterface->doRequests($thumbURL, $thumbPath);
-//                    }
-//                }
-//            }
 
             update_option('bulkProcessingStatus', 'running');
         }
@@ -794,6 +777,20 @@ HTML;
         $bytes /= pow(1024, $pow);
 
         return round($bytes, $precision) . ' ' . $units[$pow];
+    }
+
+    static public function isImage($path) {
+        if(function_exists('exif_imagetype')) {
+            return exif_imagetype($path);
+        } else {
+            $pathParts = pathinfo($path);
+            if(in_array($pathParts['extension'], array('jpg', 'jpeg', 'gif', 'png', 'bmp'))) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
     }
 
     static public function folderSize($path) {
