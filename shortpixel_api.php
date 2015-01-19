@@ -10,23 +10,19 @@ class shortpixel_api {
     private $_maxAttempts = 10;
     private $_apiEndPoint = 'https://api.shortpixel.com/v1/reducer.php';
 
-    public function setCompressionType($compressionType)
-    {
+    public function setCompressionType($compressionType) {
         $this->_compressionType = $compressionType;
     }
 
-    public function getCompressionType()
-    {
+    public function getCompressionType() {
         return $this->_compressionType;
     }
 
-    public function setApiKey($apiKey)
-    {
+    public function setApiKey($apiKey) {
         $this->_apiKey = $apiKey;
     }
 
-    public function getApiKey()
-    {
+    public function getApiKey() {
         return $this->_apiKey;
     }
 
@@ -99,6 +95,8 @@ class shortpixel_api {
                 return 'Quota exceeded</br>';
             case -17:
                 return 'Wrong API Key</br>';
+            case -302:
+                return 'Images does not exists</br>';
             default:
                 //handle error
                 return $data->Status->Message;
