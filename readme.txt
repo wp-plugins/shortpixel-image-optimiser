@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize
 Requires at least: 3.0.0 or higher
 Tested up to: 4.1
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,7 +20,7 @@ ShortPixel uses powerful algorithms that enable your website to load faster, use
 
 * **Both lossy and lossless optimisation:** you can choose between the two types of compression. Lossy for photographs. Lossless for technical drawings, clip art and comics.
 * **Up to 90% compression rate:** with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences.
-* **Supported formats:** JPG, PNG, GIF (including animated): optimisation applies to JPG, PNG and static GIF. NEW UPDATE: we introduced optimisation for animated GIFs.
+* **Supported formats:** JPG, PNG, PDF, both static and animated GIFS. NEW UPDATE: we recently introduced optimisation for PDFs.
 * **Backup and restore originals:** if you ever want to return to the original version, images are automatically stored in a backup folder on your hosting servers.
 * **Bulk image optimisation:** Crunch your image gallery, and downsize your website. This feature may take up to several hours, depending on the number and size of existing images. 
 
@@ -88,7 +88,7 @@ Your images are automatically stored in a backup folder, on your hosting server.
 
 = What types of formats can be optimised? =
 
-For now, ShortPixel supports JPEG, PNG and GIF formats. Animated GIFs and thumbnails are also optimised. Additional formats are scheduled for optimisation in the future. 
+For now, ShortPixel supports JPEG, PNG, PDF and GIF formats. Animated GIFs and thumbnails are also optimised. Additional formats are scheduled for optimisation in the future. 
 
 = I’m stuck. What do I do? =
 
@@ -106,6 +106,12 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 2.0.1 =
+
+* some improvements to bulk processing 
+* PDF files are also optimized now
+* fixed a thumb processing bug that caused extra API requests
 
 = 2.0.0 =
 
