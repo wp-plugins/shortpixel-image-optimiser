@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize, pdf, pdf optimisation, optimise pdf, shrink pdf, jpg, jpeg, jpg optimisation, optimise jpg, shrink jpg, gif, animated gif, optimise gif
 Requires at least: 3.0.0 or higher
 Tested up to: 4.1
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,14 +12,15 @@ The ShortPixel plugin reduces the images' size making your website load faster. 
 
 == Description ==
 
-ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. 
+ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original.
 
-ShortPixel uses powerful algorithms that enable your website to load faster, use less bandwidth and rank better in search.
+ShortPixel uses powerful algorithms that enable your website to load faster, use less bandwidth and rank better in search. The unique API key you receive for activating the plugin can be used for multiple websites.
 
 **The ShortPixel package includes:**
 
 * **Both lossy and lossless optimisation:** you can choose between the two types of compression. Lossy for photographs. Lossless for technical drawings, clip art and comics.
-* **Up to 90% compression rate:** with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences.
+* **One API Key for multiple sites:** after registration, you receive an API key that you can further use on several websites or applications.
+* **Up to 90% compression rate:** with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences..
 * **Supported formats:** JPG, PNG, PDF, both static and animated GIFS. NEW UPDATE: we recently introduced optimisation for PDFs.
 * **Backup and restore originals:** if you ever want to return to the original version, images are automatically stored in a backup folder on your hosting servers.
 * **Bulk image optimisation:** Crunch your image gallery, and downsize your website. This feature may take up to several hours, depending on the number and size of existing images. 
@@ -61,8 +62,7 @@ For more information about the difference read the <a href="http://en.wikipedia.
 
 = Why do I need an API key? =
 
-ShortPixel Image Optimiser uses automated processes to crunch images. The ShortPixel API integrates in the dashboard of your Wordpress website and processes both old and new images automatically.
-You can also use the API in your own applications, the <a href="https://shortpixel.com/api-docs">Documentation API</a> shows you how.
+ShortPixel Image Optimiser uses automated processes to crunch images. The ShortPixel API integrates in the dashboard of your WordPress website and processes both old and new images automatically. You can also use the same API, multiple times, in your own applications, the <a href="https://shortpixel.com/api-docs">Documentation API</a> shows you how.
 
 = Where do I get my API key? =
 
@@ -106,6 +106,13 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 2.0.3 = 
+
+* added extra check for bad server responses
+* 10 files/post request for file processing
+* updated error codes according to API v2
+* updated description 
 
 = 2.0.2 =
 

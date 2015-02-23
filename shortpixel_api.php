@@ -94,13 +94,17 @@ class shortpixel_api {
 		if(!$response) return $response;
 
 		if($response['response']['code'] != 200) {
-			WPShortPixel::log("Response 200 OK");
 			printf('Web service did not respond. Please try again later.');
 			return false;
 		}
 
 		$data = $this->parseResponse($response);
 		$data = $data[0];
+
+		if(!is_object($data) || !isset($data->Status->Code)) {
+			printf('Web service returned an error. Please try again later.');
+			return false;
+		}
 
 		switch($data->Status->Code) {
 			case 1:
@@ -112,9 +116,9 @@ class shortpixel_api {
 				//handle image has been processed
 				$this->handleSuccess($data, $url, $filePath, $ID);
 				break;
-			case -16:
+			case -403:
 				return 'Quota exceeded</br>';
-			case -17:
+			case -401:
 				return 'Wrong API Key</br>';
 			case -302:
 				return 'Images does not exists</br>';

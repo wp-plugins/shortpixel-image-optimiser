@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.0.2
+ * Version: 2.0.3
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -386,7 +386,6 @@ class WPShortPixel {
 
 				$meta = wp_get_attachment_metadata($attachment->ID);
 
-
 				if($processThumbnails && isset($meta['sizes'])) {
 					foreach($meta['sizes'] as $thumbnailData) {
 						$thumbPath = substr($imagePath, 0, strrpos($imagePath, '/')) . '/' . $thumbnailData["file"];
@@ -398,12 +397,12 @@ class WPShortPixel {
 				wp_update_attachment_metadata($attachment->ID, $meta);
 			}
 
-			if(count($imageList) > 100) {
+			if(count($imageList) > 10) {
 				$batchList = array();
 				foreach($imageList as $image) {
 					$batchList[] = $image;
 
-					if(count($batchList) == 100) {
+					if(count($batchList) == 10) {
 						$this->_apiInterface->doBulkRequest($batchList);
 						$batchList = array();
 					}
@@ -492,9 +491,9 @@ class WPShortPixel {
 		}
 		echo '<h1>ShortPixel Plugin Settings</h1>';
 		echo '<p>
-                <a href="https://shortpixel.com">ShortPixel.com</a> |
-                <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/">Installation </a> |
-                <a href="https://wordpress.org/support/plugin/shortpixel-image-optimiser">Support </a>
+                <a href="https://shortpixel.com" target="_blank">ShortPixel.com</a> |
+                <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/" target="_blank">Installation </a> |
+                <a href="https://shortpixel.com/contact" target="_blank">Support </a>
               </p>';
 		echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimisation Tool</a>.</p>';
 
@@ -632,11 +631,14 @@ HTML;
 		echo $formHTML;
 
 		if($this->_verifiedKey) {
-			$fileCount = get_option('wp-short-pixel-fileCount');
+			$fileCount = number_format(get_option('wp-short-pixel-fileCount'));
 			$savedSpace = self::formatBytes(get_option('wp-short-pixel-savedSpace'),2);
 			$averageCompression = round(get_option('wp-short-pixel-averageCompression'),2);
 			$savedBandwidth = self::formatBytes(get_option('wp-short-pixel-savedSpace') * 1000,2);
 			$quotaData = $this->getQuotaInformation();
+			if (is_numeric($quotaData['APICallsQuota'])) {
+				$quotaData['APICallsQuota'] .= "/month";
+			}
 			$backupFolderSize = self::formatBytes(self::folderSize(SP_BACKUP_FOLDER));
 			$remainingImages = (int)str_replace(',', '', $quotaData['APICallsQuota']) - (int)str_replace(',', '', $quotaData['APICallsMade']);
 			$remainingImages = number_format($remainingImages);
@@ -647,7 +649,7 @@ HTML;
 <table class="form-table">
 <tbody><tr>
 <th scope="row"><label for="totalFiles">Total number of processed files:</label></th>
-<td>$fileCount</td>
+<td>{$fileCount}</td>
 </tr>
 <tr>
 <th scope="row"><label for="savedSpace">Saved disk space by ShortPixel</label></th>
@@ -663,7 +665,7 @@ HTML;
 <table class="form-table">
 <tbody><tr>
 <th scope="row"><label for="apiQuota">Your ShortPixel plan</label></th>
-<td>{$quotaData['APICallsQuota']}/month</td>
+<td>{$quotaData['APICallsQuota']}</td>
 </tr>
 <tr>
 <th scope="row"><label for="usedQUota">Number of images processed this month:</label></th>
@@ -855,10 +857,11 @@ HTML;
 		}
 		$cleanPath = rtrim($path, '/'). '/';
 		foreach($files as $t) {
-			if ($t<>"." && $t<>"..") {
+			if ($t<>"." && $t<>"..") 
+			{
 				$currentFile = $cleanPath . $t;
 				if (is_dir($currentFile)) {
-					$size = foldersize($currentFile);
+					$size = self::folderSize($currentFile);
 					$total_size += $size;
 				}
 				else {
