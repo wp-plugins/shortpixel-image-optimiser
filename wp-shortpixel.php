@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.0.3
+ * Version: 2.0.4
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -35,14 +35,14 @@ class WPShortPixel {
 
 		//add hook for image upload processing
 		add_filter( 'wp_generate_attachment_metadata', array( &$this, 'handleImageUpload' ), 10, 2 );
-		add_filter( 'manage_media_columns', array( &$this, 'columns' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), array(&$this, 'generatePluginLinks'));
+		add_filter( 'manage_media_columns', array( &$this, 'columns' ) );//add media library column header
+		add_filter( 'plugin_action_links_' . plugin_basename(__FILE__), array(&$this, 'generatePluginLinks'));//for plugin settings page
 
 		//add_action( 'admin_footer', array(&$this, 'handleImageProcessing'));
-		add_action( 'manage_media_custom_column', array( &$this, 'generateCustomColumn' ), 10, 2 );
+		add_action( 'manage_media_custom_column', array( &$this, 'generateCustomColumn' ), 10, 2 );//generate the media library column
 
 		//add settings page
-		add_action( 'admin_menu', array( &$this, 'registerSettingsPage' ) );
+		add_action( 'admin_menu', array( &$this, 'registerSettingsPage' ) );//display SP in Settings menu
 		add_action( 'admin_menu', array( &$this, 'registerAdminPage' ) );
 		add_action( 'delete_attachment', array( &$this, 'handleDeleteAttachmentInBackup' ) );
 
@@ -175,13 +175,14 @@ class WPShortPixel {
 			echo "Missing API Key";
 			die();
 		}
-
 		//query database for first found entry that needs processing
 		global  $wpdb;
 		$qry = "SELECT * FROM " . $wpdb->prefix . "postmeta
-                WHERE meta_value LIKE '%\"WaitingProcessing\";b:1;%'
-                OR meta_value LIKE '%\"BulkProcessing\";b:1;%'
-                LIMIT " . BATCH_SIZE;
+                WHERE  ( 
+                meta_value LIKE '%\"WaitingProcessing\";b:1;%'
+                OR meta_value LIKE '%\"BulkProcessing\";b:1;%' )
+                ORDER BY post_id DESC
+                LIMIT " . BATCH_SIZE; //add also meta_key='_wp_attachment_metadata' AND ?
 		$idList = $wpdb->get_results($qry);
 
 		if(empty($idList)) { echo 'Empty queue'; die; }
@@ -192,15 +193,17 @@ class WPShortPixel {
 			$imagePath = get_attached_file($ID);
 			$meta = wp_get_attachment_metadata($ID);
 
-			//check if image is public
-			if(wp_remote_retrieve_response_code($imageURL) > 400) {
+			//check if the image file exists on disk, if not set the right params
+			if(!file_exists($imagePath)) {
 				if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
-				if(isset($met['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
+				if(isset($meta['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
+				$meta['ShortPixel']['NoFileOnDisk'] = true;
 				wp_update_attachment_metadata($ID, $meta);
 				die;
 			}
 
 			$result = $this->_apiInterface->processImage($imageURL, $imagePath, $ID);
+
 
 			if(is_string($result)) {
 				if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
@@ -273,19 +276,21 @@ class WPShortPixel {
 		$uploadFilePath = get_attached_file($attachmentID);
 		$meta = wp_get_attachment_metadata($attachmentID);
 		$pathInfo = pathinfo($uploadFilePath);
+		$SubDirs = substr($meta['file'],0,strrpos($meta['file'],"/")+1);
 
 		try {
 			//main file
-			@rename(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($uploadFilePath), $uploadFilePath);
+			@rename(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDirs . basename($uploadFilePath), $uploadFilePath);
+
 			//overwriting thumbnails
 			if(is_array($meta["sizes"])) {
 				foreach($meta["sizes"] as $size => $imageData) {
-					$source = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $imageData['file'];
+					$source = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDirs . $imageData['file'];
 					$destination = $pathInfo['dirname'] . DIRECTORY_SEPARATOR . $imageData['file'];
 					@rename($source, $destination);
 				}
 			}
-
+	
 			unset($meta["ShortPixelImprovement"]);
 			wp_update_attachment_metadata($attachmentID, $meta);
 
@@ -535,15 +540,32 @@ class WPShortPixel {
 			}
 		}
 
+
+		//empty backup
 		if(isset($_POST['emptyBackup'])) {
 			if(file_exists(SP_BACKUP_FOLDER)) {
-				$files = scandir(SP_BACKUP_FOLDER);
-				$cleanPath = rtrim(SP_BACKUP_FOLDER, '/'). '/';
-				foreach($files as $t) {
-					if ( $t != "." && $t != "..") {
-						unlink(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $t);
-					}
+				
+				//extract all images from DB in an array. of course
+				$attachments = null;
+				$attachments = get_posts( array(
+					'numberposts' => -1,
+					'post_type' => 'attachment',
+					'post_mime_type' => 'image'
+				));
+				
+			
+				//parse all images and set the right flag that the image has no backup
+				foreach($attachments as $attachment) 
+				{
+					if(self::isProcesable(get_attached_file($attachment->ID)) == false) continue;
+					
+					$meta = wp_get_attachment_metadata($attachment->ID);
+					$meta['ShortPixel']['NoBackup'] = true;
+					wp_update_attachment_metadata($attachment->ID, $meta);
 				}
+
+				//delete the actual files on disk
+				$this->deleteDir(SP_BACKUP_FOLDER);//call a recursive function to empty files and sub-dirs in backup dir
 			}
 		}
 
@@ -777,13 +799,18 @@ HTML;
 				}
 
 				print $data['ShortPixelImprovement'];
-				if(is_numeric($data['ShortPixelImprovement'])) {
+				if( is_numeric($data['ShortPixelImprovement']) && !$data['ShortPixel']['NoBackup']  ) {
 					print '%';
 					print " | <a href=\"admin.php?action=shortpixel_restore_backup&amp;attachment_ID={$id}\">Restore backup</a>";
 					return;
 				}
+				else
+					print '%';
 			} elseif(isset($data['ShortPixel']['WaitingProcessing'])) {
 				print 'Image waiting to be processed';
+				return;
+			} elseif(isset($data['ShortPixel']['NoFileOnDisk'])) {
+				print 'Image does not exist';
 				return;
 			} else {
 				if ( wp_attachment_is_image( $id ) ) {
@@ -846,6 +873,21 @@ HTML;
 			}
 		}
 
+	}
+
+	public static function deleteDir($dirPath) {
+	    if (substr($dirPath, strlen($dirPath) - 1, 1) != '/') {
+	        $dirPath .= '/';
+	    }
+	    $files = glob($dirPath . '*', GLOB_MARK);
+	    foreach ($files as $file) {
+	        if (is_dir($file)) {
+	            self::deleteDir($file);
+	            @rmdir($file);//remove empty dir
+	        } else {
+	            @unlink($file);//remove file
+	        }
+	    }
 	}
 
 	static public function folderSize($path) {

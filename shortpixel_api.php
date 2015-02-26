@@ -169,21 +169,48 @@ class shortpixel_api {
 		//if backup is enabled
 		if(get_option('wp-short-backup_images')) {
 
+			$imageIndex = 0;
+			$uploadDir = wp_upload_dir();
+
 			if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
 				return sprintf("Backup folder does not exist and it could not be created");
 			}
+			$meta = wp_get_attachment_metadata($ID);
+			$source[$imageIndex] = $filePath;
+			
+			//create destination dir if it isn't already created
+			@mkdir( SP_BACKUP_FOLDER . $uploadDir['subdir'], 0777, true);
+			
+			$destination[$imageIndex] = SP_BACKUP_FOLDER . $uploadDir['subdir'] . DIRECTORY_SEPARATOR . basename($source[$imageIndex]);
 
-			$source = $filePath;
-			$destination = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($source);
+			foreach ( $meta['sizes'] as $pictureDetails )
+			{
+				$imageIndex++;
+				$source[$imageIndex] = $uploadDir['path'] . DIRECTORY_SEPARATOR . $pictureDetails['file'];
+				$destination[$imageIndex] = SP_BACKUP_FOLDER . $uploadDir['subdir'] . DIRECTORY_SEPARATOR . basename($source[$imageIndex]);
+
+			}
+
 
 			if(is_writable(SP_BACKUP_FOLDER)) {
-				if(!file_exists($destination)) {
-					@copy($source, $destination);
+				if(!file_exists($destination[0])) 
+				{
+					foreach ( $source as $imageIndex => $fileSource )
+					{
+						$fileDestination = $destination[$imageIndex];
+						@copy($fileSource, $fileDestination);
+					}			
+					
 				}
 			} else {
 				return sprintf("Backup folder exists but is not writable");
 			}
 		}
+
+
+
+/////////////////////////
+
 
 		@unlink( $filePath );
 		$success = @rename( $tempFile, $filePath );

@@ -3,8 +3,8 @@
 Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize, pdf, pdf optimisation, optimise pdf, shrink pdf, jpg, jpeg, jpg optimisation, optimise jpg, shrink jpg, gif, animated gif, optimise gif
 Requires at least: 3.0.0 or higher
-Tested up to: 4.1
-Stable tag: 2.0.3
+Tested up to: 4.1.1
+Stable tag: 2.0.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -106,6 +106,14 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 2.0.4 =
+
+* fixed recursive backup directory size counter
+* added backup with subdirectory structure to handle many files
+* empty backup can handle subdirectories & sets the right flag for backup restore
+* latest images are optimized first
+* check for missing images on disk but still linked in DB
 
 = 2.0.3 = 
 
