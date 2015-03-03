@@ -33,8 +33,8 @@ class shortpixel_api {
 		add_action('processImageAction', array(&$this, 'processImageAction'), 10, 4);
 	}
 
-	public function processImageAction($url, $filePath, $ID, $time) {
-		$this->processImage($url, $filePath, $ID, $time);
+	public function processImageAction($url, $filePaths, $ID, $time) {
+		$this->processImage($url, $filePaths, $ID, $time);
 	}
 
 	public function doRequests($urls, $filePath, $ID = null) {
@@ -59,11 +59,12 @@ class shortpixel_api {
 			'lossy' => $this->_compressionType,
 			'urllist' => $imageList
 		);
-		
+	
 		$response = wp_remote_post($this->_apiEndPoint, array(
 			'method' => 'POST',
 			'timeout' => 45,
-			'redirection' => 5,
+			'redirection' => 3,
+			'sslverify' => false,
 			'httpversion' => '1.0',
 			'blocking' => $blocking,
 			'headers' => array(),
@@ -82,7 +83,7 @@ class shortpixel_api {
 	}
 
 	//handles the processing of the image using the ShortPixel API
-	public function processImage($url, $filePath, $ID = null, $startTime = 0) {
+	public function processImage($url, $filePaths, $ID = null, $startTime = 0) {
 		
 		if($startTime == 0) { $startTime = time(); }		
 		if(time() - $startTime > MAX_EXECUTION_TIME) {//keeps track of time
@@ -93,7 +94,7 @@ class shortpixel_api {
 			return 'Could not determine compression';
 		}
 
-		$response = $this->doRequests($url, $filePath, $ID);//send requests to API
+		$response = $this->doRequests($url, $filePaths, $ID);//send requests to API
 		if(!$response) return $response;
 
 		if($response['response']['code'] != 200) {//response <> 200 -> there was an error apparently?
@@ -114,11 +115,11 @@ class shortpixel_api {
 			case 1:
 				//handle image has been scheduled
 				sleep(1);
-				return $this->processImage($url, $filePath, $ID, $startTime);
+				return $this->processImage($url, $filePaths, $ID, $startTime);
 				break;
 			case 2:
 				//handle image has been processed
-				$this->handleSuccess($data, $url, $filePath, $ID);
+				$this->handleSuccess($data, $url, $filePaths, $ID);
 				break;
 			case -403:
 				return 'Quota exceeded</br>';
@@ -128,7 +129,9 @@ class shortpixel_api {
 				return 'Images does not exists</br>';
 			default:
 				//handle error
-				return $data->Status->Message;
+				if ( isset($data[0]->Status->Message) )
+					return $data[0]->Status->Message;
+				
 		}
 
 		return $data;
@@ -177,14 +180,12 @@ class shortpixel_api {
 				return sprintf("Unable to locate downloaded file (%s)", $tempFiles[$counter]);
 				die;
 			}	
-			
 			$counter++;
 		}
 
 		//if backup is enabled
 		if(get_option('wp-short-backup_images')) 
 		{
-
 			$imageIndex = 0;
 			$uploadDir = wp_upload_dir();
 
@@ -192,42 +193,41 @@ class shortpixel_api {
 				return sprintf("Backup folder does not exist and it could not be created");
 			}
 			$meta = wp_get_attachment_metadata($ID);
-			$source[$imageIndex] = $filePath;
-			
+			$source = $filePath;
+
 			//create destination dir if it isn't already created
 			@mkdir( SP_BACKUP_FOLDER . $uploadDir['subdir'], 0777, true);
-			
+		
 			$destination[$imageIndex] = SP_BACKUP_FOLDER . $uploadDir['subdir'] . DIRECTORY_SEPARATOR . basename($source[$imageIndex]);
-
-			foreach ( $meta['sizes'] as $pictureDetails )
+			
+			if ( strtolower(substr($source[0], strrpos($source[0],".") + 1 )) <> "pdf" )//backup works differently if it is a PDF file
 			{
-				$imageIndex++;
-				$source[$imageIndex] = $uploadDir['path'] . DIRECTORY_SEPARATOR . $pictureDetails['file'];
-				$destination[$imageIndex] = SP_BACKUP_FOLDER . $uploadDir['subdir'] . DIRECTORY_SEPARATOR . basename($source[$imageIndex]);
-
+				foreach ( $meta['sizes'] as $pictureDetails )
+				{
+					$imageIndex++;
+					$source[$imageIndex] = $uploadDir['path'] . DIRECTORY_SEPARATOR . $pictureDetails['file'];
+					$destination[$imageIndex] = SP_BACKUP_FOLDER . $uploadDir['subdir'] . DIRECTORY_SEPARATOR . basename($source[$imageIndex]);
+				}
 			}
-
 
 			if(is_writable(SP_BACKUP_FOLDER)) {
 				if(!file_exists($destination[0])) 
-				{
+				{					
 					foreach ( $source as $imageIndex => $fileSource )
 					{
 						$fileDestination = $destination[$imageIndex];
 						@copy($fileSource, $fileDestination);
 					}			
-					
 				}
 			} else {
 				return sprintf("Backup folder exists but is not writable");
 			}
-		}//end backup section
 
+		}//end backup section
 
 		$counter = 0;
 		$meta = wp_get_attachment_metadata($ID);//we'll need the metadata for subdir
-		$SubDir = trim(substr($meta['file'],0,strrpos($meta['file'],"/")+1));
-		if ( strlen($SubDir) == 0 )//it is likely a PDF file so we treat this differently
+		if ( !isset($meta['file']) )//it is likely a PDF file so we treat this differently
 		{
 			global  $wpdb;
 			$qry = "SELECT * FROM " . $wpdb->prefix . "postmeta
@@ -239,6 +239,9 @@ class shortpixel_api {
 			$metaPDF = $idList[0];	
 			$SubDir = trim(substr($metaPDF->meta_value,0,strrpos($metaPDF->meta_value,"/")+1));
 		}
+		else //its an image
+			$SubDir = trim(substr($meta['file'],0,strrpos($meta['file'],"/")+1));
+			
 		
 		foreach ( $tempFiles as $tempFile )
 		{ 
