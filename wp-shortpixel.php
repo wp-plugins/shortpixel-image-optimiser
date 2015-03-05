@@ -3,21 +3,25 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.0.6
+ * Version: 2.0.7
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
 
 require_once('shortpixel_api.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
+require_once( ABSPATH . 'wp-includes/pluggable.php' );
 
+define('PLUGIN_VERSION', "2.0.7");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'ShortpixelBackups');
 define('MUST_HAVE_KEY', true);
 define('BATCH_SIZE', 1);
-define('MAX_EXECUTION_TIME', 30);   //in seconds
+$MAX_EXECUTION_TIME = ini_get('max_execution_time');
+if ( is_numeric($MAX_EXECUTION_TIME) )
+	define('MAX_EXECUTION_TIME', $MAX_EXECUTION_TIME - 1 );   //in seconds
 
 class WPShortPixel {
 
@@ -30,6 +34,7 @@ class WPShortPixel {
 
 	public function __construct() {
 		$this->populateOptions();
+		$this->setDefaultViewModeList();//set default mode as list. only @ first run
 
 		$this->_apiInterface = new shortpixel_api($this->_apiKey, $this->_compressionType);
 
@@ -57,6 +62,7 @@ class WPShortPixel {
 
 		$this->migrateBackupFolder();
 	}
+
 
 	public function populateOptions() {
 
@@ -100,6 +106,24 @@ class WPShortPixel {
 			add_option( 'wp-short-pixel-averageCompression', 0, '', 'yes' );
 		}
 	}
+	
+	public function setDefaultViewModeList() 
+	{
+		if(get_option('wp-short-pixel-view-mode') === false) 
+		{
+			add_option('wp-short-pixel-view-mode', 1, '', 'yes' );
+			if ( function_exists(get_currentuserinfo) )
+				{
+					global $current_user;
+					get_currentuserinfo();
+					$currentUserID = $current_user->ID;
+					update_user_meta($currentUserID, "wp_media_library_mode", "list");
+					echo "OK";
+				}
+		}
+		
+	}
+
 
 	static function log($message) {
 		if(SP_DEBUG) {
@@ -144,27 +168,40 @@ class WPShortPixel {
 	}
 
 	public function handleImageUpload($meta, $ID = null) {
-		if(MUST_HAVE_KEY && $this->_verifiedKey) {
-			self::log("Processing image id {$ID}");
-			$url = wp_get_attachment_url($ID);
-			$path = get_attached_file($ID);
-			if(self::isProcesable($path) != false) {
-				$urlList[] = $url;
-				$filePath[] = $path;
-
-				//send request for thumbs as well, if needed
-				if( !empty($meta['sizes']) ) 
+		if(MUST_HAVE_KEY && $this->_verifiedKey) 
+			{
+				self::log("Processing image id {$ID}");
+				$url = wp_get_attachment_url($ID);
+				$path = get_attached_file($ID);
+				if(self::isProcesable($path) != false) 
 				{
-					foreach($meta['sizes'] as $thumbnailInfo) {
-						$urlList[] = str_replace(basename($url), $thumbnailInfo['file'], $url);
-						$filePath[] = str_replace(basename($path), $thumbnailInfo['file'], $path);
+					$urlList[] = $url;
+					$filePath[] = $path;
+					//send request for thumbs as well, if needed
+					if( !empty($meta['sizes']) ) 
+					{
+						foreach($meta['sizes'] as $thumbnailInfo) 
+						{
+							$urlList[] = str_replace(basename($url), $thumbnailInfo['file'], $url);
+							$filePath[] = str_replace(basename($path), $thumbnailInfo['file'], $path);
+						}
+						$this->_apiInterface->doRequests($urlList, $filePath);//send a processing request right after a file was uploaded
 					}
-					$this->_apiInterface->doRequests($urlList, $filePath);//send a processing request right after a file was uploaded
+					else//file is PDF maybe?
+					{
+						$uploadFilePath = get_attached_file($ID);
+						if ( strtolower(substr($uploadFilePath,strrpos($uploadFilePath, ".")+1)) == "pdf" ) //is a PDF file
+						{
+							$filePath[0] = $uploadFilePath;
+							$this->_apiInterface->doRequests($urlList, $filePath);//send a processing request right after a file was uploaded
+						}
+					}
+				} 
+				else 
+				{
+					$meta['ShortPixelImprovement'] = 'File is not an image';
+					return $meta;
 				}
-			} else {
-				$meta['ShortPixelImprovement'] = 'File is not an image';
-				return $meta;
-			}
 		} else {
 
 		}
@@ -197,7 +234,7 @@ class WPShortPixel {
 				$ID = $post->post_id;
 				$imageURL =  wp_get_attachment_url($ID);
 				$imagePath = get_attached_file($ID);
-				$meta = wp_get_attachment_metadata($ID);
+				$meta = wp_get_attachment_metadata($ID);		
 	
 			if ( !isset($meta['file']) )//this could be a PDF file
 				{
@@ -233,11 +270,13 @@ class WPShortPixel {
 						wp_update_attachment_metadata($ID, $meta);
 						die;
 					}
-		
-					//figure out the base URL					
+				
+					//figure out the base URL	
+					$SubDir = substr($meta['file'],0,strrpos($meta['file'],"/")+1);
 					$uploadDir = wp_upload_dir();
-					$filesURL = $uploadDir['url'] . DIRECTORY_SEPARATOR;
-					$filesPath = $uploadDir['path'] . DIRECTORY_SEPARATOR;
+					$filesPath = $uploadDir['basedir'] . DIRECTORY_SEPARATOR . $SubDir;//base upload path
+					$filesURL = $uploadDir['baseurl'] . DIRECTORY_SEPARATOR . $SubDir;//base upload url
+
 					//create the images' URL list
 					$imageURLs[$imageIndex] = $filesURL . basename($meta['file']);//main image first
 					$imagePaths[$imageIndex] = $filesPath . basename($meta['file']);
@@ -367,12 +406,26 @@ class WPShortPixel {
 		$meta = wp_get_attachment_metadata($ID);
 		if(self::isProcesable($uploadFilePath) != false) {
 			try {
-				//main file
-				@unlink(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . basename($uploadFilePath));
-				//overwriting thumbnails
-				if(isset($meta["sizes"])) {
-					foreach($meta["sizes"] as $size => $imageData) {
-						@unlink(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $imageData['file']);
+				$uploadDir = wp_upload_dir();
+				$SubDir = substr($meta['file'],0,strrpos($meta['file'],"/")+1);
+				if ( empty($SubDir) ) //its a PDF?
+				{
+					$uploadFilePath = get_attached_file($ID);
+					$tmp = str_replace($uploadDir['basedir'],"", $uploadFilePath);
+					$SubDir = trim(substr($tmp,0,strrpos($tmp,"/")));
+					@unlink(SP_BACKUP_FOLDER . $SubDir . DIRECTORY_SEPARATOR . basename($uploadFilePath));
+				}
+				else
+				{//remove images
+					$filesPath =  SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir;//base BACKUP path
+					//remove main imgage/file
+					@unlink($filesPath . basename($meta['file']));
+	
+					//remove thumbs thumbnails
+					if(isset($meta["sizes"])) {
+						foreach($meta["sizes"] as $size => $imageData) {
+							@unlink($filesPath . basename($imageData['file']));//remove thumbs
+						}
 					}
 				}
 			} catch(Exception $e) {
@@ -405,10 +458,10 @@ class WPShortPixel {
 	}
 
 	function registerAdminPage( ) {
-		add_media_page( 'ShortPixel Bulk Process', 'Bulk ShortPixel', 'edit_others_posts', 'wp-short-pixel-bulk', array( &$this, 'bulkProcesss' ) );
+		add_media_page( 'ShortPixel Bulk Process', 'Bulk ShortPixel', 'edit_others_posts', 'wp-short-pixel-bulk', array( &$this, 'bulkProcess' ) );
 	}
 
-	public function bulkProcesss() {//fai
+	public function bulkProcess() {
 		echo '<h1>Bulk Image Optimisation by ShortPixel</h1>';
 
 		if(MUST_HAVE_KEY && $this->_verifiedKey == false) {//invalid API Key
@@ -439,8 +492,8 @@ class WPShortPixel {
 		$attachments = array_merge($attachments_images, $attachments_pdf);
 
 
-		if($_POST["bulkProcess"]) {
-		
+		if($_POST["bulkProcess"]) 
+		{
 			$uploadDir = wp_upload_dir();
 			$uploadDir = $uploadDir['basedir'];	
 			
@@ -472,7 +525,7 @@ class WPShortPixel {
 							$imageDiskPath[] = $imageOnDisk;
 						}
 					}
-				}
+				}			
 
 				$meta['ShortPixel']['BulkProcessing'] = true;
 				wp_update_attachment_metadata($attachment->ID, $meta);
@@ -496,11 +549,10 @@ class WPShortPixel {
 			} else {
 //				$this->_apiInterface->doBulkRequest($imageList);
 			}
-		echo "again<BR>";
 
 
 			update_option('bulkProcessingStatus', 'running');
-		}//end bulk process 
+		}//end bulk process  was clicked
 
 		global  $wpdb;
 		$qry = "SELECT * FROM " . $wpdb->prefix . "postmeta

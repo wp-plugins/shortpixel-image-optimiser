@@ -55,11 +55,12 @@ class shortpixel_api {
 		if(!is_array($imageList)) return false;
 
 		$requestParameters = array(
+			'plugin_version' => PLUGIN_VERSION,
 			'key' => $this->_apiKey,
 			'lossy' => $this->_compressionType,
 			'urllist' => $imageList
 		);
-	
+
 		$response = wp_remote_post($this->_apiEndPoint, array(
 			'method' => 'POST',
 			'timeout' => 45,
@@ -110,7 +111,7 @@ class shortpixel_api {
 		}
 		
 		$firstImage = $data[0];//extract as object first image
-		
+
 		switch($firstImage->Status->Code) {
 			case 1:
 				//handle image has been scheduled
@@ -139,7 +140,7 @@ class shortpixel_api {
 
 
 	public function handleSuccess($callData, $url, $filePath, $ID) {
-
+		
 		$counter = 0;
 		if($this->_compressionType)
 			{
@@ -152,78 +153,88 @@ class shortpixel_api {
 				$fileSize = "LoselessSize";
 			}
 
-		foreach ( $callData as $fileData )//download each file from array and process it
-		{
-			
-			if ( $counter == 0 )//save percent improvement for main file
-				$percentImprovement = $fileData->PercentImprovement;
-
-			$correctFileSize = $fileData->$fileSize;
-			$tempFiles[$counter] = download_url(urldecode($fileData->$fileType));
-			
-			if(is_wp_error( $tempFiles[$counter] )) //also tries with http instead of https
-				$tempFiles[$counter] = download_url(str_replace('https://', 'http://', urldecode($fileData->$fileType)));
-				
-			if ( is_wp_error( $tempFiles[$counter] ) ) {
-				@unlink($tempFiles[$counter]);
-				return sprintf("Error downloading file (%s)", $tempFiles[$counter]->get_error_message());
-				die;
-			}
-	
-			//check response so that download is OK
-			if( filesize($tempFiles[$counter]) != $correctFileSize) {
-				return sprintf("Error downloading file - incorrect file size");
-				die;
-			}
-	
-			if (!file_exists($tempFiles[$counter])) {
-				return sprintf("Unable to locate downloaded file (%s)", $tempFiles[$counter]);
-				die;
-			}	
-			$counter++;
-		}
-
-		//if backup is enabled
-		if(get_option('wp-short-backup_images')) 
-		{
-			$imageIndex = 0;
-			$uploadDir = wp_upload_dir();
-
-			if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
-				return sprintf("Backup folder does not exist and it could not be created");
-			}
-			$meta = wp_get_attachment_metadata($ID);
-			$source = $filePath;
-
-			//create destination dir if it isn't already created
-			@mkdir( SP_BACKUP_FOLDER . $uploadDir['subdir'], 0777, true);
-		
-			$destination[$imageIndex] = SP_BACKUP_FOLDER . $uploadDir['subdir'] . DIRECTORY_SEPARATOR . basename($source[$imageIndex]);
-			
-			if ( strtolower(substr($source[0], strrpos($source[0],".") + 1 )) <> "pdf" )//backup works differently if it is a PDF file
+			foreach ( $callData as $fileData )//download each file from array and process it
 			{
-				foreach ( $meta['sizes'] as $pictureDetails )
+				
+				if ( $counter == 0 )//save percent improvement for main file
+					$percentImprovement = $fileData->PercentImprovement;
+	
+				$correctFileSize = $fileData->$fileSize;
+				$tempFiles[$counter] = download_url(urldecode($fileData->$fileType));
+				
+				if(is_wp_error( $tempFiles[$counter] )) //also tries with http instead of https
+					$tempFiles[$counter] = download_url(str_replace('https://', 'http://', urldecode($fileData->$fileType)));
+					
+				if ( is_wp_error( $tempFiles[$counter] ) ) {
+					@unlink($tempFiles[$counter]);
+					return sprintf("Error downloading file (%s)", $tempFiles[$counter]->get_error_message());
+					die;
+				}
+		
+				//check response so that download is OK
+				if( filesize($tempFiles[$counter]) != $correctFileSize) {
+					return sprintf("Error downloading file - incorrect file size");
+					die;
+				}
+		
+				if (!file_exists($tempFiles[$counter])) {
+					return sprintf("Unable to locate downloaded file (%s)", $tempFiles[$counter]);
+					die;
+				}	
+				$counter++;
+			}
+
+			//if backup is enabled
+			if(get_option('wp-short-backup_images')) 
+			{
+				$imageIndex = 0;
+				$uploadDir = wp_upload_dir();
+	
+				if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
+					return sprintf("Backup folder does not exist and it could not be created");
+				}
+				$meta = wp_get_attachment_metadata($ID);
+				$source = $filePath;
+				$SubDir = trim(substr($meta['file'],0,strrpos($meta['file'],"/")+1));
+				
+				if ( empty($SubDir) ) //its a PDF?
 				{
-					$imageIndex++;
-					$source[$imageIndex] = $uploadDir['path'] . DIRECTORY_SEPARATOR . $pictureDetails['file'];
-					$destination[$imageIndex] = SP_BACKUP_FOLDER . $uploadDir['subdir'] . DIRECTORY_SEPARATOR . basename($source[$imageIndex]);
-				}
-			}
+					$uploadFilePath = get_attached_file($ID);
+					$tmp = str_replace($uploadDir['basedir'],"", $uploadFilePath);
+					$SubDir = trim(substr($tmp,0,strrpos($tmp,"/")));
 
-			if(is_writable(SP_BACKUP_FOLDER)) {
-				if(!file_exists($destination[0])) 
-				{					
-					foreach ( $source as $imageIndex => $fileSource )
+					//create destination dir if it isn't already created
+					@mkdir( SP_BACKUP_FOLDER . $SubDir, 0777, true);
+					$destination[$imageIndex] = SP_BACKUP_FOLDER . $SubDir . DIRECTORY_SEPARATOR . basename($uploadFilePath);
+											
+				}
+				else //it is not PDF, its an image
+				{
+					@mkdir( SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR. $SubDir, 0777, true);
+					$destination[$imageIndex] = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir . basename($source[$imageIndex]);//for main file
+	
+					foreach ( $meta['sizes'] as $pictureDetails )
 					{
-						$fileDestination = $destination[$imageIndex];
-						@copy($fileSource, $fileDestination);
-					}			
+						$imageIndex++;
+						$source[$imageIndex] = $uploadDir['basedir'] . DIRECTORY_SEPARATOR . $SubDir . $pictureDetails['file'];
+						$destination[$imageIndex] = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir . basename($source[$imageIndex]);
+					}
 				}
-			} else {
-				return sprintf("Backup folder exists but is not writable");
-			}
-
-		}//end backup section
+				
+				if(is_writable(SP_BACKUP_FOLDER)) {
+					if(!file_exists($destination[0])) 
+					{					
+						foreach ( $source as $imageIndex => $fileSource )
+						{
+							$fileDestination = $destination[$imageIndex];
+							@copy($fileSource, $fileDestination);
+						}			
+					}
+				} else {
+					return sprintf("Backup folder exists but is not writable");
+				}
+	
+			}//end backup section
 
 		$counter = 0;
 		$meta = wp_get_attachment_metadata($ID);//we'll need the metadata for subdir
