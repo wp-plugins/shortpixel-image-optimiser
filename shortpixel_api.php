@@ -38,7 +38,6 @@ class shortpixel_api {
 	}
 
 	public function doRequests($urls, $filePath, $ID = null) {
-		
 		if ( !is_array($urls) )
 			$response = $this->doBulkRequest(array($urls), true);
 		else
@@ -78,7 +77,6 @@ class shortpixel_api {
 
 	public function parseResponse($response) {
 		$data = $response['body'];
-		$data = str_replace('Warning: Division by zero in /usr/local/important/web/api.shortpixel.com/lib/functions.php on line 33', '', $data);
 		$data = $this->parseJSON($data);
 		return $data;
 	}
@@ -87,12 +85,23 @@ class shortpixel_api {
 	public function processImage($url, $filePaths, $ID = null, $startTime = 0) {
 		
 		if($startTime == 0) { $startTime = time(); }		
+		$apiRetries = get_option('wp-short-pixel-api-retries');
 		if(time() - $startTime > MAX_EXECUTION_TIME) {//keeps track of time
-			$meta = wp_get_attachment_metadata($ID);
-			$meta['ShortPixelImprovement'] = 'Could not determine compression';
-			unset($meta['ShortPixel']['WaitingProcessing']);
-			wp_update_attachment_metadata($ID, $meta);
-			return 'Could not determine compression';
+			if ( $apiRetries > MAX_API_RETRIES )//we tried to process this time too many times, giving up...
+			{
+				$meta = wp_get_attachment_metadata($ID);
+				$meta['ShortPixelImprovement'] = 'Timed out while processing.';
+				unset($meta['ShortPixel']['WaitingProcessing']);
+				wp_update_attachment_metadata($ID, $meta);
+			}
+			else
+			{//we'll try again next time user visits a page on admin panel
+				$apiRetries++;
+				update_option('wp-short-pixel-api-retries', $apiRetries);
+				exit('Timed out while processing. (pass '.$apiRetries.')');	
+			}
+			
+			
 		}
 
 		$response = $this->doRequests($url, $filePaths, $ID);//send requests to API
@@ -111,7 +120,18 @@ class shortpixel_api {
 		}
 		
 		$firstImage = $data[0];//extract as object first image
-
+		
+		//this part makes sure that all the sizes were processed and ready to be downloaded
+		foreach ( $data as $imageObject )
+		{
+			if 	( $imageObject->Status->Code <> 2 )
+			{
+				sleep(2);
+				//echo "\n not ready($apiRetries):" . $imageObject->OriginalURL;//fai
+				return $this->processImage($url, $filePaths, $ID, $startTime);	
+			}		
+		}
+		
 		switch($firstImage->Status->Code) {
 			case 1:
 				//handle image has been scheduled
@@ -124,10 +144,13 @@ class shortpixel_api {
 				break;
 			case -403:
 				return 'Quota exceeded</br>';
+				break;
 			case -401:
 				return 'Wrong API Key</br>';
+				break;
 			case -302:
 				return 'Images does not exists</br>';
+				break;
 			default:
 				//handle error
 				if ( isset($data[0]->Status->Message) )
@@ -155,7 +178,7 @@ class shortpixel_api {
 
 			foreach ( $callData as $fileData )//download each file from array and process it
 			{
-				
+			
 				if ( $counter == 0 )//save percent improvement for main file
 					$percentImprovement = $fileData->PercentImprovement;
 	
@@ -163,8 +186,11 @@ class shortpixel_api {
 				$tempFiles[$counter] = download_url(urldecode($fileData->$fileType));
 				
 				if(is_wp_error( $tempFiles[$counter] )) //also tries with http instead of https
+				{
+					sleep(2);
 					$tempFiles[$counter] = download_url(str_replace('https://', 'http://', urldecode($fileData->$fileType)));
-					
+				}	
+				
 				if ( is_wp_error( $tempFiles[$counter] ) ) {
 					@unlink($tempFiles[$counter]);
 					return sprintf("Error downloading file (%s)", $tempFiles[$counter]->get_error_message());
@@ -254,7 +280,7 @@ class shortpixel_api {
 			$SubDir = trim(substr($meta['file'],0,strrpos($meta['file'],"/")+1));
 			
 		
-		foreach ( $tempFiles as $tempFile )
+		foreach ( $tempFiles as $tempFile )//overwrite the original files with the optimized ones
 		{ 
 			
 			$sourceFile = $tempFile;
@@ -294,9 +320,11 @@ class shortpixel_api {
 			$meta['ShortPixelImprovement'] = $percentImprovement;
 			wp_update_attachment_metadata($ID, $meta);
 		}
-		
-
-	}
+	
+		//we reset the retry counter in case of success
+		update_option('wp-short-pixel-api-retries', 0);
+	
+	}//end handleSuccess
 
 	public function parseJSON($data) {
 		if ( function_exists('json_decode') ) {

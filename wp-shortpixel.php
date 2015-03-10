@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.0.7
+ * Version: 2.0.8
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -12,13 +12,13 @@ require_once('shortpixel_api.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
 require_once( ABSPATH . 'wp-includes/pluggable.php' );
 
-define('PLUGIN_VERSION', "2.0.7");
+define('PLUGIN_VERSION', "2.0.8");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'ShortpixelBackups');
 define('MUST_HAVE_KEY', true);
-define('BATCH_SIZE', 1);
+define('MAX_API_RETRIES', 5);
 $MAX_EXECUTION_TIME = ini_get('max_execution_time');
 if ( is_numeric($MAX_EXECUTION_TIME) )
 	define('MAX_EXECUTION_TIME', $MAX_EXECUTION_TIME - 1 );   //in seconds
@@ -105,8 +105,14 @@ class WPShortPixel {
 		if(get_option('wp-short-pixel-averageCompression') === false) {
 			add_option( 'wp-short-pixel-averageCompression', 0, '', 'yes' );
 		}
+	
+		if(get_option('wp-short-pixel-api-retries') === false) {//sometimes we need to retry processing/downloading a file multiple times
+			add_option( 'wp-short-pixel-api-retries', 0, '', 'yes' );
+		}
+	
 	}
 	
+	//set default move as "list". only set once, it won't try to set the default mode again.
 	public function setDefaultViewModeList() 
 	{
 		if(get_option('wp-short-pixel-view-mode') === false) 
@@ -202,9 +208,8 @@ class WPShortPixel {
 					$meta['ShortPixelImprovement'] = 'File is not an image';
 					return $meta;
 				}
-		} else {
-
-		}
+		} 
+		
 		$meta['ShortPixel']['WaitingProcessing'] = true;
 		return $meta;
 	}
@@ -221,82 +226,28 @@ class WPShortPixel {
                 meta_value LIKE '%\"WaitingProcessing\";b:1;%'
                 OR meta_value LIKE '%\"BulkProcessing\";b:1;%' )
                 ORDER BY post_id DESC
-                LIMIT " . BATCH_SIZE; //add also meta_key='_wp_attachment_metadata' AND ?
+                LIMIT 0,3";
 		$idList = $wpdb->get_results($qry);
 	
 		if(empty($idList)) { echo 'Empty queue'; die; }
 
-		$fileCounter=0;
-		$ID=array();
-		foreach($idList as $post) 
-		{		
-				$imageIndex=0;
-				$ID = $post->post_id;
-				$imageURL =  wp_get_attachment_url($ID);
-				$imagePath = get_attached_file($ID);
-				$meta = wp_get_attachment_metadata($ID);		
-	
-			if ( !isset($meta['file']) )//this could be a PDF file
-				{
-					$qry = "SELECT * FROM " . $wpdb->prefix . "postmeta
-	                WHERE  (
-						post_id = $ID AND
-						meta_key = '_wp_attached_file'
-						)";
-					$idList = $wpdb->get_results($qry);
-					$idList = $idList[0];
-					$uploadDir = wp_upload_dir();
-					$filePath = $uploadDir['path'] . DIRECTORY_SEPARATOR . basename($idList->meta_value);
-	
-					//check if the image file exists on disk, if not set the right params
-					if(!file_exists($filePath)) {
-						if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
-						if(isset($meta['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
-						$meta['ShortPixel']['NoFileOnDisk'] = true;
-						wp_update_attachment_metadata($ID, $meta);
-						die;
-					}
-	
-					$imageURLs[] = $uploadDir['url'] . DIRECTORY_SEPARATOR . basename($idList->meta_value);//URL to PDF file
-					$imagePaths[] = $filePath;
-				}
-			else
-				{//process images
-					//check if the image file exists on disk, if not set the right params
-					if(!file_exists($imagePath)) {
-						if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
-						if(isset($meta['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
-						$meta['ShortPixel']['NoFileOnDisk'] = true;
-						wp_update_attachment_metadata($ID, $meta);
-						die;
-					}
-				
-					//figure out the base URL	
-					$SubDir = substr($meta['file'],0,strrpos($meta['file'],"/")+1);
-					$uploadDir = wp_upload_dir();
-					$filesPath = $uploadDir['basedir'] . DIRECTORY_SEPARATOR . $SubDir;//base upload path
-					$filesURL = $uploadDir['baseurl'] . DIRECTORY_SEPARATOR . $SubDir;//base upload url
-
-					//create the images' URL list
-					$imageURLs[$imageIndex] = $filesURL . basename($meta['file']);//main image first
-					$imagePaths[$imageIndex] = $filesPath . basename($meta['file']);
-					$processThumbnails = get_option('wp-short-process_thumbnails');
-					//handle the rest of the thumbnails generated by WP
-					if ( $processThumbnails )
-					{
-						foreach ( $meta['sizes'] as $pictureDetails )
-						{
-							$imageIndex++;
-							$imageURLs[$imageIndex] = $filesURL . $pictureDetails['file'];
-							$imagePaths[$imageIndex] = $filesPath . $pictureDetails['file'];
-						}
-					}
-				}
-				
-				$fileCounter++;
+		//send a couple of pre-process requests (if available/needed)	
+		if ( isset($idList[1]) )
+		{
+			$itemDetails = $this->returnURLsAndPaths($idList[1]);
+			$this->_apiInterface->doRequests($itemDetails['imageURLs'], $itemDetails['imagePaths']);	
 		}
-			
-		$result = $this->_apiInterface->processImage($imageURLs, $imagePaths, $ID);
+		if ( isset($idList[2]) )
+		{
+			$itemDetails = $this->returnURLsAndPaths($idList[1]);
+			$this->_apiInterface->doRequests($itemDetails['imageURLs'], $itemDetails['imagePaths']);	
+		}
+
+		//send a request for the latest item
+		$itemDetails = $this->returnURLsAndPaths($idList[0]);
+		$meta = $itemDetails['meta'];
+		$ID = $itemDetails['ID'];
+		$result = $this->_apiInterface->processImage($itemDetails['imageURLs'], $itemDetails['imagePaths'], $ID);//use the API connection to send processing requests for these files.	
 
 		if(is_string($result)) {
 			if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
@@ -317,10 +268,82 @@ class WPShortPixel {
 
 		$meta['ShortPixelImprovement'] = $result[0]->PercentImprovement;
 		wp_update_attachment_metadata($ID, $meta);
-		echo "Processing done succesfully for image #{$ID}";
+		echo "\nProcessing done succesfully for image #{$ID}";
 
 		die();
 	}
+	
+	
+	//return urls and paths to be used but other functions
+	public function returnURLsAndPaths($itemDetails)
+	{
+			$imageIndex=0;
+			$ID = $itemDetails->post_id;
+			$imageURL =  wp_get_attachment_url($ID);
+			$imagePath = get_attached_file($ID);
+			$meta = wp_get_attachment_metadata($ID);		
+
+		if ( !isset($meta['file']) )//this could be a PDF file
+			{
+				$qry = "SELECT * FROM " . $wpdb->prefix . "postmeta
+                WHERE  (
+					post_id = $ID AND
+					meta_key = '_wp_attached_file'
+					)";
+				$idList = $wpdb->get_results($qry);
+				$idList = $idList[0];
+				$uploadDir = wp_upload_dir();
+				$filePath = $uploadDir['path'] . DIRECTORY_SEPARATOR . basename($idList->meta_value);
+
+				//check if the image file exists on disk, if not set the right params
+				if(!file_exists($filePath)) {
+					if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
+					if(isset($meta['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
+					$meta['ShortPixel']['NoFileOnDisk'] = true;
+					wp_update_attachment_metadata($ID, $meta);
+					die;
+				}
+
+				$imageURLs[] = $uploadDir['url'] . DIRECTORY_SEPARATOR . basename($idList->meta_value);//URL to PDF file
+				$imagePaths[] = $filePath;
+			}
+		else
+			{//process images
+				//check if the image file exists on disk, if not set the right params
+				if(!file_exists($imagePath)) {
+					if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
+					if(isset($meta['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
+					$meta['ShortPixel']['NoFileOnDisk'] = true;
+					wp_update_attachment_metadata($ID, $meta);
+					die;
+				}
+			
+				//figure out the base URL	
+				$SubDir = substr($meta['file'],0,strrpos($meta['file'],"/")+1);
+				$uploadDir = wp_upload_dir();
+				$filesPath = $uploadDir['basedir'] . DIRECTORY_SEPARATOR . $SubDir;//base upload path
+				$filesURL = $uploadDir['baseurl'] . DIRECTORY_SEPARATOR . $SubDir;//base upload url
+
+				//create the images' URL list
+				$imageURLs[$imageIndex] = $filesURL . basename($meta['file']);//main image first
+				$imagePaths[$imageIndex] = $filesPath . basename($meta['file']);
+				$processThumbnails = get_option('wp-short-process_thumbnails');
+				//handle the rest of the thumbnails generated by WP
+				if ( $processThumbnails )
+				{
+					foreach ( $meta['sizes'] as $pictureDetails )
+					{
+						$imageIndex++;
+						$imageURLs[$imageIndex] = $filesURL . $pictureDetails['file'];
+						$imagePaths[$imageIndex] = $filesPath . $pictureDetails['file'];
+					}
+				}
+			}
+			
+			
+			return array("imageURLs" => $imageURLs, "imagePaths" => $imagePaths, "meta" => $meta, "ID" => $ID);
+	}
+	
 
 	public function handleManualOptimization() {
 		$attachmentID = intval($_GET['attachment_ID']);
@@ -938,7 +961,7 @@ HTML;
 					return;
 				}
 				else
-					print '%';
+					print '';
 			} elseif(isset($data['ShortPixel']['WaitingProcessing'])) {
 				print 'Image waiting to be processed';
 				return;
