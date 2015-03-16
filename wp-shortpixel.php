@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.0.8
+ * Version: 2.0.9
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -12,7 +12,7 @@ require_once('shortpixel_api.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
 require_once( ABSPATH . 'wp-includes/pluggable.php' );
 
-define('PLUGIN_VERSION', "2.0.8");
+define('PLUGIN_VERSION', "2.0.9");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
@@ -118,7 +118,7 @@ class WPShortPixel {
 		if(get_option('wp-short-pixel-view-mode') === false) 
 		{
 			add_option('wp-short-pixel-view-mode', 1, '', 'yes' );
-			if ( function_exists(get_currentuserinfo) )
+			if ( function_exists('get_currentuserinfo') )
 				{
 					global $current_user;
 					get_currentuserinfo();
@@ -277,6 +277,8 @@ class WPShortPixel {
 	//return urls and paths to be used but other functions
 	public function returnURLsAndPaths($itemDetails)
 	{
+			global  $wpdb;
+		
 			$imageIndex=0;
 			$ID = $itemDetails->post_id;
 			$imageURL =  wp_get_attachment_url($ID);
