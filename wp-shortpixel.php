@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimiser
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.1.0
+ * Version: 2.1.1
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -12,7 +12,7 @@ require_once('shortpixel_api.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
 require_once( ABSPATH . 'wp-includes/pluggable.php' );
 
-define('PLUGIN_VERSION', "2.1.0");
+define('PLUGIN_VERSION', "2.1.1");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
@@ -115,11 +115,11 @@ class WPShortPixel {
 			add_option( 'wp-short-pixel-api-retries', 0, '', 'yes' );
 		}
 		
-		if(get_option('wp-short-pixel-query-id-start') === false) {//current query ID used for postmeta
+		if(get_option('wp-short-pixel-query-id-start') === false) {//current query ID used for postmeta queries
 			add_option( 'wp-short-pixel-query-id-start', 0, '', 'yes' );
 		}	
 	
-		if(get_option('wp-short-pixel-query-id-stop') === false) {//current query ID used for postmeta
+		if(get_option('wp-short-pixel-query-id-stop') === false) {//min ID used for postmeta queries
 			add_option( 'wp-short-pixel-query-id-stop', 0, '', 'yes' );
 		}	
 	
@@ -211,7 +211,7 @@ class WPShortPixel {
 				self::log("Processing image id {$ID}");
 				$url = wp_get_attachment_url($ID);
 				$path = get_attached_file($ID);
-				if(self::isProcesable($path) != false) 
+				if(self::isProcessable($path) != false) 
 				{
 					if ( empty($meta) && $bulkProcessingStatus <> 'running' )//here's a PDF file most likely, while bulk not running
 						{
@@ -270,6 +270,12 @@ class WPShortPixel {
 
 		$startQueryID = get_option('wp-short-pixel-query-id-start');
 		$endQueryID = get_option('wp-short-pixel-query-id-stop');
+
+		if ( $startQueryID <= $endQueryID )
+		{
+			echo 'Empty queue ' . $startQueryID . '->' . $endQueryID;
+			die;
+		}
 		sleep(1);
 		$queryPostMeta = "SELECT * FROM " . $wpdb->prefix . "postmeta 
 						WHERE ( post_id <= $startQueryID AND post_id > $endQueryID ) AND (
@@ -279,10 +285,26 @@ class WPShortPixel {
 						ORDER BY post_id DESC
 						LIMIT " . SP_MAX_RESULTS_QUERY;
 		$resultsPostMeta = $wpdb->get_results($queryPostMeta);
+		
+		if ( empty($resultsPostMeta) )
+		{
+			$startQueryID = 0;
+			update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID			
+			echo 'Empty results ' . $startQueryID . '->' . $endQueryID;
+			die;
+		}
+		
 		$idList = array();
+		$countMeta = 0;
 		foreach ( $resultsPostMeta as $itemMetaData )
 		{
-			$meta = wp_get_attachment_metadata($itemMetaData->post_id);
+			if ( $countMeta == 0 )
+				{
+					$metaCurrentFile = wp_get_attachment_metadata($itemMetaData->post_id);
+					$meta = $metaCurrentFile;
+				}
+			else
+				$meta = wp_get_attachment_metadata($itemMetaData->post_id);
 			$meta['ShortPixelImprovement'] = ( isset($meta['ShortPixelImprovement']) ) ? $meta['ShortPixelImprovement'] : "";
 			$filePath = get_attached_file($itemMetaData->post_id);
 			$fileExtension = strtolower(substr($filePath,strrpos($filePath,".")+1));
@@ -291,29 +313,32 @@ class WPShortPixel {
 			{
 				$idList[] = $itemMetaData;
 			}
+			
+			$countMeta++;
 		}
 		
 		if ( isset($idList[0]) )
 		{
+			$meta = $metaCurrentFile; //assign the saved meta of the file position [0]
 			$meta = wp_get_attachment_metadata($idList[0]->post_id);
 			$filePath = get_attached_file($idList[0]->post_id);
 			$fileExtension = strtolower(substr($filePath,strrpos($filePath,".")+1));
 			
-			if( !empty($meta) && !isset($meta['ShortPixel']['WaitingProcessing']) ) //possibly the file wasn't processed in the first pass so we'll wait for it to be completed
+			if ( !self::isProcessable($filePath) )//file has a non-supported extension, we skip it
+			{
+				$startQueryID = $idList[0]->post_id - 1;
+				update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID
+				die();
+			}
+			elseif( !empty($meta) && !isset($meta['ShortPixel']['WaitingProcessing']) ) //possibly the file wasn't processed in the first pass so we'll wait for it to be completed
 			{
 				$startQueryID = ( $idList[0]->post_id );
 				update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID
 			}
 			elseif ( empty($meta) && $fileExtension <> "pdf" )//file is not an image or PDF so we just skip to the next batch
 			{
-				$startQueryID = $startQueryID - SP_MAX_RESULTS_QUERY;
+				$startQueryID = $startQueryID - 1; //SP_MAX_RESULTS_QUERY;
 				update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID	
-				die();			
-			}
-			elseif ( !self::isProcesable($filePath) )//file has a non-supported extension, we skip it
-			{	
-				$startQueryID = $idList[0]->post_id - 1;
-				update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID
 				die();			
 			}
 			else //file was processed in the first pass
@@ -322,12 +347,17 @@ class WPShortPixel {
 				update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID	
 			}			
 		}
-		elseif ( $startQueryID > $endQueryID ) 
+		elseif ( $startQueryID > $endQueryID )
 		{
-			$startQueryID = $startQueryID - 1;
+			if ( isset($resultsPostMeta[2]) && is_numeric($resultsPostMeta[2]->post_id) ) 
+				$startQueryID = $resultsPostMeta[2]->post_id;
+			else	
+				$startQueryID = $startQueryID - 1;
 			update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID
 			die();
 		}
+		
+
 
 //////////////////////       
 
@@ -347,6 +377,7 @@ class WPShortPixel {
 			$this->_apiInterface->doRequests($itemDetails['imageURLs'], $itemDetails['imagePaths']);	
 		}
 
+		//send a couple of pre-process requests (if available/needed)
 		if ( isset($idList[2]) )
 		{
 			$itemDetails = $this->returnURLsAndPaths($idList[1]);
@@ -360,7 +391,7 @@ class WPShortPixel {
 		$ID = $itemDetails['ID'];
 		$result = $this->_apiInterface->processImage($itemDetails['imageURLs'], $itemDetails['imagePaths'], $ID);//use the API connection to send processing requests for these files.	
 
-		if(is_string($result)) {
+		if(is_string($result)) {//there was an error?
 			if(isset($meta['ShortPixel']['BulkProcessing'])) { unset($meta['ShortPixel']['BulkProcessing']); }
 			if(isset($meta['ShortPixel']['WaitingProcessing'])) { unset($meta['ShortPixel']['WaitingProcessing']); }
 			$meta['ShortPixelImprovement'] = $result;
@@ -517,35 +548,30 @@ class WPShortPixel {
 	public function handleRestoreBackup() {
 		$attachmentID = intval($_GET['attachment_ID']);
 
-		$uploadFilePath = get_attached_file($attachmentID);
+		$file = get_attached_file($attachmentID);
 		$meta = wp_get_attachment_metadata($attachmentID);
 		$uploadDir = wp_upload_dir();
-		$pathInfo = pathinfo($uploadFilePath);
-		$file = get_attached_file($attachmentID);
-		$fileExtension = strtolower(substr($file,strrpos($file,".")+1));
-		if ( $fileExtension <> "pdf" )
-			$SubDirs = substr($meta['file'],0,strrpos($meta['file'],"/")+1);
-		else
-			$SubDirs = substr(str_replace($uploadDir['basedir'],"", $pathInfo['dirname']),1) . "/";//generate subdirs for PDF files
-			
-		//sometimes the month of original file and backup can differ
-		if ( !file_exists(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDirs . basename($uploadFilePath)) )
-			$SubDirs = date("Y") . "/" . date("m") . "/";
+		$pathInfo = pathinfo($file);
 	
+		$fileExtension = strtolower(substr($file,strrpos($file,".")+1));
+		$SubDir = $this->_apiInterface->returnSubDir($file);
+
+		//sometimes the month of original file and backup can differ
+		if ( !file_exists(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir . basename($file)) )
+			$SubDir = date("Y") . "/" . date("m") . "/";
 
 		try {
 			//main file	
-			@rename(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDirs . basename($uploadFilePath), $uploadFilePath);
+			@rename(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir . basename($file), $file);
 
 			//overwriting thumbnails
-			if($fileExtension <> "pdf") {
+			if( !empty($meta['file']) ) {
 				foreach($meta["sizes"] as $size => $imageData) {
-					$source = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDirs . $imageData['file'];
+					$source = SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir . $imageData['file'];
 					$destination = $pathInfo['dirname'] . DIRECTORY_SEPARATOR . $imageData['file'];
 					@rename($source, $destination);
 				}
 			}
-
 			unset($meta["ShortPixelImprovement"]);
 			wp_update_attachment_metadata($attachmentID, $meta);
 
@@ -563,36 +589,26 @@ class WPShortPixel {
 
 
 	public function handleDeleteAttachmentInBackup($ID) {
-		$uploadFilePath = get_attached_file($ID);
+		$file = get_attached_file($ID);
 		$meta = wp_get_attachment_metadata($ID);
-		if(self::isProcesable($uploadFilePath) != false) {
+		if(self::isProcessable($file) != false) {
 			try {
 				$uploadDir = wp_upload_dir();
-				if ( isset($meta['file']) )
-					$SubDir = substr($meta['file'],0,strrpos($meta['file'],"/")+1);
-				else
-					$SubDir = "";
+				$SubDir = $this->_apiInterface->returnSubDir($file);
 					
-				if ( empty($SubDir) ) //its a PDF?
+				@unlink(SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir . basename($file));
+				
+				if ( !empty($meta['file']) )
 				{
-					$uploadFilePath = get_attached_file($ID);
-					$tmp = str_replace($uploadDir['basedir'],"", $uploadFilePath);
-					$SubDir = trim(substr($tmp,0,strrpos($tmp,"/")));
-					@unlink(SP_BACKUP_FOLDER . $SubDir . DIRECTORY_SEPARATOR . basename($uploadFilePath));
-				}
-				else
-				{//remove images
 					$filesPath =  SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir;//base BACKUP path
-					//remove main imgage/file
-					@unlink($filesPath . basename($meta['file']));
-	
 					//remove thumbs thumbnails
 					if(isset($meta["sizes"])) {
 						foreach($meta["sizes"] as $size => $imageData) {
 							@unlink($filesPath . basename($imageData['file']));//remove thumbs
 						}
 					}
-				}
+				}			
+				
 			} catch(Exception $e) {
 				//what to do, what to do?
 			}
@@ -609,7 +625,6 @@ class WPShortPixel {
 
 	public function bulkProcess() {
 		global $wpdb;
-		
 		echo '<h1>Bulk Image Optimisation by ShortPixel</h1>';
 
 		if(MUST_HAVE_KEY && $this->_verifiedKey == false) {//invalid API Key
@@ -620,9 +635,7 @@ class WPShortPixel {
 	
 		if(isset($_GET['cancel'])) 
 		{//cancel an ongoing bulk processing, it might be needed sometimes
-			update_option("wp-short-pixel-query-id-start", 0);
-			update_option("wp-short-pixel-query-id-stop", 0);
-			delete_option('bulkProcessingStatus');
+			$this->cancelProcessing();
 		}
 
 		if(isset($_POST["bulkProcess"])) 
@@ -630,11 +643,11 @@ class WPShortPixel {
 			$queryMax = "SELECT max(post_id) as startQueryID FROM " . $wpdb->prefix . "postmeta";
 			$resultQuery = $wpdb->get_results($queryMax);
 			$startQueryID = $resultQuery[0]->startQueryID;
-			update_option("wp-short-pixel-query-id-start", $startQueryID);//start downwards from the biggest item ID
+			update_option("wp-short-pixel-query-id-start", $startQueryID);//start downwards from the biggest item ID			
 			update_option("wp-short-pixel-query-id-stop", 0);
 			update_option("wp-short-pixel-flag-id", $startQueryID);//we use to detect new added files while bulk is running
 			add_option('bulkProcessingStatus', 'running');//set bulk flag		
-		}//end bulk process  was clicked
+		}//end bulk process  was clicked	
 
 		$bulkProcessingStatus = get_option('bulkProcessingStatus');
 		$startQueryID = get_option('wp-short-pixel-query-id-start');
@@ -729,6 +742,14 @@ class WPShortPixel {
         ';
 	}
 	//end bulk processing
+	
+	
+	public function cancelProcessing(){
+		//cancel an ongoing bulk processing, it might be needed sometimes 
+		update_option("wp-short-pixel-query-id-start", 0);
+		update_option("wp-short-pixel-query-id-stop", 0);
+		delete_option('bulkProcessingStatus');
+	}
 
 	public function renderSettingsMenu() {
 		if ( !current_user_can( 'manage_options' ) )  {
@@ -748,6 +769,7 @@ class WPShortPixel {
 			
 			//handle API Key - common for submit and validate
 			$_POST['key'] = trim($_POST['key']);
+			
 			$validityData = $this->getQuotaInformation($_POST['key'], true);
 
 			$this->_apiKey = $_POST['key'];
@@ -763,11 +785,12 @@ class WPShortPixel {
 			} else {
 				if(isset($_POST['validate'])) {
 					//display notification
-					printf($noticeHTML, '#dd3d36', $validityData["Message"]);
+					printf($noticeHTML, '#ff0000', $validityData["Message"]);
 				}
 				update_option('wp-short-pixel-verifiedKey', false);
 				$this->_verifiedKey = false;
 			}
+
 
 			//if save button - we process the rest of the form elements
 			if(isset($_POST['submit'])) {
@@ -798,7 +821,7 @@ class WPShortPixel {
 				//parse all images and set the right flag that the image has no backup
 				foreach($attachments as $attachment) 
 				{
-					if(self::isProcesable(get_attached_file($attachment->ID)) == false) continue;
+					if(self::isProcessable(get_attached_file($attachment->ID)) == false) continue;
 					
 					$meta = wp_get_attachment_metadata($attachment->ID);
 					$meta['ShortPixel']['NoBackup'] = true;
@@ -987,7 +1010,7 @@ HTML;
 		);
 
 		if($appendUserAgent) {
-			$args['body']['useragent'] = urlencode($_SERVER['HTTP_USER_AGENT']);
+			$args['body']['useragent'] = "Agnt" . urlencode($_SERVER['HTTP_USER_AGENT']);
 		}
 
 		$response = wp_remote_post($requestURL, $args);
@@ -1050,24 +1073,43 @@ HTML;
 			{
 				if(isset($meta['ShortPixel']['BulkProcessing'])) {
 					print 'Waiting for bulk processing';
+					print " | <a href=\"admin.php?action=shortpixel_manual_optimize&amp;attachment_ID={$id}\">Optimize now</a>";
 					return;
 				}
 
-				print $data['ShortPixelImprovement'];
 				if( is_numeric($data['ShortPixelImprovement']) && !isset($data['ShortPixel']['NoBackup'])  ) {
-					print '%';
+					print $data['ShortPixelImprovement'] . '%';
 					print " | <a href=\"admin.php?action=shortpixel_restore_backup&amp;attachment_ID={$id}\">Restore backup</a>";
 					return;
 				}
-				elseif ( $data['ShortPixelImprovement'] <> "Optimisation N/A" || is_numeric($data['ShortPixelImprovement']) )
+				elseif ( is_numeric($data['ShortPixelImprovement']) ) 
+				{
+					print $data['ShortPixelImprovement'];
 					print '%';
+					return;
+				}
+				elseif ( $data['ShortPixelImprovement'] <> "Optimisation N/A" )
+				{
+					print $data['ShortPixelImprovement'];
+					print " | <a href=\"admin.php?action=shortpixel_manual_optimize&amp;attachment_ID={$id}\">Try again</a>";
+					return;
+				}	
+				else
+				{
+					print "Optimisation N/A";
+					return;
+				}
+					
+					
 			} elseif(isset($data['ShortPixel']['WaitingProcessing'])) {
 				print 'Image waiting to be processed';
+				print " | <a href=\"admin.php?action=shortpixel_manual_optimize&amp;attachment_ID={$id}\">Optimize now</a>";
 				return;
 			} elseif(isset($data['ShortPixel']['NoFileOnDisk'])) {
 				print 'Image does not exist';
 				return;
 			} else {
+				
 				if ( wp_attachment_is_image( $id ) ) {
 					print 'Image not processed';
 					print " | <a href=\"admin.php?action=shortpixel_manual_optimize&amp;attachment_ID={$id}\">Optimize now</a>";
@@ -1078,6 +1120,7 @@ HTML;
 					print " | <a href=\"admin.php?action=shortpixel_manual_optimize&amp;attachment_ID={$id}\">Optimize now</a>";
 					return;	
 				}
+			
 			}
 		}
 	}
@@ -1116,23 +1159,14 @@ HTML;
 
 		return round($bytes, $precision) . ' ' . $units[$pow];
 	}
-
-	static public function isProcesable($path) {
+	
+	static public function isProcessable($path) {
 		$pathParts = pathinfo($path);
-		if($pathParts['extension'] == 'pdf') {
-			return true;
-		}
-
-		if(function_exists('exif_imagetype')) {
-			return exif_imagetype($path);
-		} else {
-			if(in_array($pathParts['extension'], array('jpg', 'jpeg', 'gif', 'png'))) {
+		if( isset($pathParts['extension']) && in_array(strtolower($pathParts['extension']), array('jpg', 'jpeg', 'gif', 'png', 'pdf'))) {
 				return true;
 			} else {
 				return false;
 			}
-		}
-
 	}
 
 	public static function deleteDir($dirPath) {
