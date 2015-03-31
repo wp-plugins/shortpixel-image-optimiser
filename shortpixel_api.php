@@ -135,6 +135,7 @@ class shortpixel_api {
 				break;
 			case 2:
 				//handle image has been processed
+				update_option( 'wp-short-pixel-quota-exceeded', 0);//reset the quota exceeded flag
 				$this->handleSuccess($data, $url, $filePaths, $ID);
 				break;
 			default:
@@ -147,7 +148,11 @@ class shortpixel_api {
 		{
 			switch($data['Status']->Code) {
 			case -403:
-				return 'Quota exceeded</br>';
+				update_option("wp-short-pixel-query-id-start", 0);//update max and min ID			
+				update_option("wp-short-pixel-query-id-stop", 0);
+				@delete_option('bulkProcessingStatus');
+				update_option( 'wp-short-pixel-quota-exceeded', 1);
+				return 'Quota exceeded';
 				break;
 			case -401:
 				return 'Wrong API Key</br>';
@@ -219,9 +224,8 @@ class shortpixel_api {
 				$counter++;
 			}
 
-			
 			//if backup is enabled
-			if( get_option('wp-short-backup_images') ) 
+			if( get_option('wp-short-backup_images') )
 			{
 				$imageIndex = 0;
 				$uploadDir = wp_upload_dir();
@@ -242,7 +246,6 @@ class shortpixel_api {
 						$SubDir = $this->returnSubDir($meta['file']);
 						$source = $filePath;
 					}
-
 				
 				//create backup dir if needed
 				@mkdir( SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir, 0777, true);
@@ -268,6 +271,9 @@ class shortpixel_api {
 						}			
 					}
 				} else {
+					$meta = wp_get_attachment_metadata($ID);
+					$meta['ShortPixelImprovement'] = 'Cannot save file in backup directory';
+					wp_update_attachment_metadata($ID, $meta);
 					return sprintf("Backup folder exists but is not writable");
 				}
 	
@@ -275,18 +281,19 @@ class shortpixel_api {
 
 
 		$counter = 0;
+		$writeFailed = 0;
 		foreach ( $tempFiles as $tempFile )//overwrite the original files with the optimized ones
 		{ 
 			$sourceFile = $tempFile;
 			$destinationFile = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $SubDir . basename($url[$counter]);
 				
-			if ( $sourceFile <> "" && file_exists($sourceFile) )//possibly there was an error and the file couldn't have been processed
+			if ( $sourceFile <> "" && file_exists($sourceFile) )
 			{
 				@unlink( $destinationFile );			
 				$success = @rename( $sourceFile, $destinationFile );
 		
 				if (!$success) {
-					$copySuccess = copy($sourceFile, $destinationFile);
+					$copySuccess = @copy($sourceFile, $destinationFile);
 					unlink($sourceFile);
 				}
 			}
@@ -297,7 +304,8 @@ class shortpixel_api {
 				}
 		
 			//save data to counters
-			if( $success || $copySuccess) {
+			if( $success || $copySuccess) 
+			{
 				//update statistics
 				$fileData = $callData[$counter];
 				$savedSpace = $fileData->OriginalSize - $fileData->LossySize;
@@ -311,15 +319,19 @@ class shortpixel_api {
 				$averageCompression = $averageCompression /  (get_option('wp-short-pixel-fileCount') + 1);
 				update_option('wp-short-pixel-averageCompression', $averageCompression);
 				update_option('wp-short-pixel-fileCount', get_option('wp-short-pixel-fileCount')+1);
-	
 			}
+			else
+				$writeFailed++;//the file couldn't have been overwritten, we'll let the user know about this
 			$counter++;
 		}	
 
 		//update metadata
-		if(isset($ID)) {
+		if(isset($ID)) {	
 			$meta = wp_get_attachment_metadata($ID);
-			$meta['ShortPixelImprovement'] = round($percentImprovement,2);
+			if ( $writeFailed == 0 ) 
+				$meta['ShortPixelImprovement'] = round($percentImprovement,2);
+			else
+				$meta['ShortPixelImprovement'] = 'Cannot write optimized file';
 			wp_update_attachment_metadata($ID, $meta);
 		}
 	
