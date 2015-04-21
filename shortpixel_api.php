@@ -223,6 +223,19 @@ class shortpixel_api {
 					$tempFiles[$counter] = "";
 				$counter++;
 			}
+			
+			//generate SubDir for this file
+			$meta = wp_get_attachment_metadata($ID);
+			if ( empty($meta['file']) )//file has no metadata attached (like PDF files uploaded before SP plugin)
+				{
+					$attachedFilePath = get_attached_file($ID);
+					$SubDir = $this->returnSubDir($attachedFilePath);
+				}
+			else
+				{
+					$SubDir = $this->returnSubDir($meta['file']);
+					$source = $filePath;
+				}
 
 			//if backup is enabled
 			if( get_option('wp-short-backup_images') )
@@ -234,18 +247,6 @@ class shortpixel_api {
 				if(!file_exists(SP_BACKUP_FOLDER) && !mkdir(SP_BACKUP_FOLDER, 0777, true)) {
 					return sprintf("Backup folder does not exist and it could not be created");
 				}
-				
-				$meta = wp_get_attachment_metadata($ID);
-				if ( empty($meta['file']) )//file has no metadata attached (like PDF files uploaded before SP plugin)
-					{
-						$attachedFilePath = get_attached_file($ID);
-						$SubDir = $this->returnSubDir($attachedFilePath);
-					}
-				else
-					{
-						$SubDir = $this->returnSubDir($meta['file']);
-						$source = $filePath;
-					}
 				
 				//create backup dir if needed
 				@mkdir( SP_BACKUP_FOLDER . DIRECTORY_SEPARATOR . $SubDir, 0777, true);

@@ -1,18 +1,21 @@
 <?php
 /**
- * Plugin Name: ShortPixel Image Optimiser
+ * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
- * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimises images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.1.2
+ * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimizes images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
+ * Version: 2.1.3
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
 
 require_once('shortpixel_api.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
-require_once( ABSPATH . 'wp-includes/pluggable.php' );
+include_once( ABSPATH . 'wp-admin/includes/plugin.php' ); 
+if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
+  require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
+} 
 
-define('PLUGIN_VERSION', "2.1.2");
+define('PLUGIN_VERSION', "2.1.3");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
@@ -37,6 +40,7 @@ class WPShortPixel {
 	private $_verifiedKey = false;
 
 	public function __construct() {
+		
 		$this->populateOptions();
 		$this->setDefaultViewModeList();//set default mode as list. only @ first run
 
@@ -134,10 +138,11 @@ class WPShortPixel {
 	
 	public function shortPixelActivatePlugin()//reset some params to avoid troubles for plugins that were activated/deactivated/activated
 	{
+			$this->getMaxShortPixelId();//fetch data for endQueryID and startQueryID	
 			delete_option('bulkProcessingStatus');		
 			delete_option( 'wp-short-pixel-cancel-pointer');
-			update_option( 'wp-short-pixel-query-id-stop', 0 );
-			update_option( 'wp-short-pixel-query-id-start', 0 );
+			update_option( 'wp-short-pixel-query-id-stop', $endQueryID );
+			update_option( 'wp-short-pixel-query-id-start', $startQueryID );
 	}
 	
 	public function shortPixelDeactivatePlugin()//reset some params to avoid troubles for plugins that were activated/deactivated/activated
@@ -298,10 +303,7 @@ class WPShortPixel {
 		
 		if ( empty($resultsPostMeta) )
 		{
-			$queryMax = "SELECT max(post_id) as startQueryID FROM " . $wpdb->prefix . "postmeta";
-			$resultQuery = $wpdb->get_results($queryMax);
-			$startQueryID = $resultQuery[0]->startQueryID;
-			$endQueryID = $startQueryID;
+			$this->getMaxShortPixelId();//fetch data for endQueryID and startQueryID	
 			update_option("wp-short-pixel-query-id-start", $startQueryID);//update max and min ID			
 			update_option("wp-short-pixel-query-id-stop", $endQueryID);
 			echo 'Empty results ' . $startQueryID . '->' . $endQueryID;
@@ -376,16 +378,12 @@ class WPShortPixel {
 			update_option("wp-short-pixel-query-id-start", $startQueryID);//update max ID
 			die();
 		}
-		else
-			echo "GGGG-->";
 
 
 //////////////////////       
 
 		if( empty($idList) && $startQueryID <= $endQueryID ) { //die but before set the $endQueryID so only new files will be processed
-			$queryMax = "SELECT max(post_id) as startQueryID FROM " . $wpdb->prefix . "postmeta";
-			$resultQuery = $wpdb->get_results($queryMax);
-			$endQueryID = $resultQuery[0]->startQueryID;
+			$this->getMaxShortPixelId();//fetch data for endQueryID and startQueryID	
 			update_option('wp-short-pixel-query-id-stop', $endQueryID);
 			delete_option('bulkProcessingStatus');
 			echo 'Empty queue - '.$endQueryID; die;
@@ -612,7 +610,7 @@ class WPShortPixel {
 
 	public function bulkProcess() {
 		global $wpdb;
-		echo '<h1>Bulk Image Optimisation by ShortPixel</h1>';
+		echo '<h1>Bulk Image Optimization by ShortPixel</h1>';
 
 		if(MUST_HAVE_KEY && $this->_verifiedKey == false) {//invalid API Key
 			echo "<p>In order to start processing your images, you need to validate your API key in the ShortPixel Settings. If you don’t have an API Key, you can get one delivered to your inbox.</p>";
@@ -627,9 +625,7 @@ class WPShortPixel {
 
 		if(isset($_POST["bulkProcess"])) 
 		{
-			$queryMax = "SELECT max(post_id) as startQueryID FROM " . $wpdb->prefix . "postmeta";
-			$resultQuery = $wpdb->get_results($queryMax);
-			$startQueryID = $resultQuery[0]->startQueryID;
+			$this->getMaxShortPixelId();//fetch data for endQueryID and startQueryID	
 			update_option("wp-short-pixel-query-id-start", $startQueryID);//start downwards from the biggest item ID			
 			update_option("wp-short-pixel-query-id-stop", 0);
 			update_option("wp-short-pixel-flag-id", $startQueryID);//we use to detect new added files while bulk is running
@@ -682,7 +678,7 @@ class WPShortPixel {
 		{
 
 			echo "<p>
-					Bulk optimisation has started. This process will take some time, depending on the number of images in your library. <BR>Do not worry about the slow speed, it is a necessary measure in order not to interfere with the normal functioning of your site.<BR><BR>
+					Bulk optimization has started. This process will take some time, depending on the number of images in your library. <BR>Do not worry about the slow speed, it is a necessary measure in order not to interfere with the normal functioning of your site.<BR><BR>
 					This is a brief estimation of the bulk processing times:<BR>
 					1 to 100 images < 20 min <BR>
 					100 to 500 images < 2 hour<BR>
@@ -714,12 +710,10 @@ class WPShortPixel {
 			$bulkProcessingStatus = get_option('bulkProcessingStatus');
 			if(isset($bulkProcessingStatus) && $bulkProcessingStatus == 'running') 
 			{
-				echo "<p>Bulk optimisation was successful. ShortPixel has finished optimising all your images.</p>
-                      <p>Go to the ShortPixel <a href='" . get_admin_url() . "options-general.php?page=wp-shortpixel#facts'>Stats</a> and see your website's optimised stats (in Settings > ShortPixel). </p>";
-                      
-                $queryMax = "SELECT max(post_id) as startQueryID FROM " . $wpdb->prefix . "postmeta";
-				$resultQuery = $wpdb->get_results($queryMax);
-				$startQueryID = $resultQuery[0]->startQueryID;
+				echo "<p>Bulk optimization was successful. ShortPixel has finished optimizing all your images.</p>
+                      <p>Go to the ShortPixel <a href='" . get_admin_url() . "options-general.php?page=wp-shortpixel#facts'>Stats</a> and see your website's optimized stats (in Settings > ShortPixel). </p>";
+                
+                $this->getMaxShortPixelId();//fetch data for endQueryID and startQueryID	
 				$maxIDbeforeBulk = get_option("wp-short-pixel-flag-id");//what was the max id before bulk was started?
 
 				if ( $startQueryID > $maxIDbeforeBulk )//basically we resume the processing for the files uploaded while bulk was running
@@ -765,10 +759,13 @@ class WPShortPixel {
 	
 	public function cancelProcessing(){
 		//cancel an ongoing bulk processing, it might be needed sometimes 
+		global $wpdb;
 		$startQueryID = get_option('wp-short-pixel-query-id-start');
 		add_option( 'wp-short-pixel-cancel-pointer', $startQueryID);//we save this so we can resume bulk processing
-		update_option("wp-short-pixel-query-id-start", 0);
-		update_option("wp-short-pixel-query-id-stop", 0);
+		
+		$this->getMaxShortPixelId();//fetch data for endQueryID and startQueryID	
+		update_option("wp-short-pixel-query-id-start", $startQueryID);
+		update_option("wp-short-pixel-query-id-stop", $endQueryID);
 		delete_option('bulkProcessingStatus');
 		echo "Empty queue";
 	}
@@ -783,7 +780,7 @@ class WPShortPixel {
                 <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/" target="_blank">Installation </a> |
                 <a href="https://shortpixel.com/contact" target="_blank">Support </a>
               </p>';
-		echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimisation Tool</a>.</p>';
+		echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimization Tool</a>.</p>';
 
 		$noticeHTML = "<br/><div style=\"background-color: #fff; border-left: 4px solid %s; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px;\"><p>%s</p></div>";
 
@@ -1309,6 +1306,15 @@ Currently, you have {$imageCount} images in your library. </br>
 			}
 		}
 		return $total_size;
+	}
+	
+	public function getMaxShortPixelId() {
+		global  $wpdb,$startQueryID,$endQueryID;
+		$queryMax = "SELECT max(post_id) as startQueryID FROM " . $wpdb->prefix . "postmeta";
+		$resultQuery = $wpdb->get_results($queryMax);
+		$startQueryID = $resultQuery[0]->startQueryID;
+		$endQueryID = $startQueryID;		
+		
 	}
 
 	public function migrateBackupFolder() {
