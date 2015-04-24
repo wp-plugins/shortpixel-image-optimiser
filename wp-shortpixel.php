@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimizes images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.1.3
+ * Version: 2.1.4
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -15,7 +15,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
   require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
 } 
 
-define('PLUGIN_VERSION', "2.1.3");
+define('PLUGIN_VERSION', "2.1.4");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
@@ -138,6 +138,7 @@ class WPShortPixel {
 	
 	public function shortPixelActivatePlugin()//reset some params to avoid troubles for plugins that were activated/deactivated/activated
 	{
+			global  $startQueryID,$endQueryID;
 			$this->getMaxShortPixelId();//fetch data for endQueryID and startQueryID	
 			delete_option('bulkProcessingStatus');		
 			delete_option( 'wp-short-pixel-cancel-pointer');
@@ -278,7 +279,7 @@ class WPShortPixel {
 			die();
 		}
 		//query database for first found entry that needs processing //
-		global  $wpdb;
+		global  $wpdb,$startQueryID,$endQueryID;
 		
 //////////////////
 
@@ -609,7 +610,7 @@ class WPShortPixel {
 	}
 
 	public function bulkProcess() {
-		global $wpdb;
+		global $wpdb,$startQueryID,$endQueryID;
 		echo '<h1>Bulk Image Optimization by ShortPixel</h1>';
 
 		if(MUST_HAVE_KEY && $this->_verifiedKey == false) {//invalid API Key
@@ -759,7 +760,7 @@ class WPShortPixel {
 	
 	public function cancelProcessing(){
 		//cancel an ongoing bulk processing, it might be needed sometimes 
-		global $wpdb;
+		global  $wpdb,$startQueryID,$endQueryID;
 		$startQueryID = get_option('wp-short-pixel-query-id-start');
 		add_option( 'wp-short-pixel-cancel-pointer', $startQueryID);//we save this so we can resume bulk processing
 		
@@ -1050,10 +1051,13 @@ Currently, you have {$imageCount} images in your library. </br>
 		);
 
 		if($appendUserAgent) {
-			$args['body']['useragent'] = "Agnt" . urlencode($_SERVER['HTTP_USER_AGENT']);
+			$args['body']['useragent'] = "Agent" . urlencode($_SERVER['HTTP_USER_AGENT']);
 		}
 
 		$response = wp_remote_post($requestURL, $args);
+		
+		if(is_wp_error( $response )) //some hosting providers won't allow https:// POST connections so we try http:// as well
+			$response = wp_remote_post(str_replace('https://', 'http://', $requestURL), $args);	
 
 		if(is_wp_error( $response )) {
 			$response = wp_remote_get(str_replace('https://', 'http://', $requestURL), $args);
