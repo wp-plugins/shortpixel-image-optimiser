@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimizes images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.1.5
+ * Version: 2.1.6
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -15,14 +15,13 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
   require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
 } 
 
-define('PLUGIN_VERSION', "2.1.5");
+define('PLUGIN_VERSION', "2.1.6");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'ShortpixelBackups');
 define('MUST_HAVE_KEY', true);
 define('MAX_API_RETRIES', 5);
-define('QUOTA_EXCEEDED', "Quota Exceeded. <a href='https://shortpixel.com/pricing' target='_blank'>Learn more</a>");
 $MAX_EXECUTION_TIME = ini_get('max_execution_time');
 if ( is_numeric($MAX_EXECUTION_TIME) )
 	define('MAX_EXECUTION_TIME', $MAX_EXECUTION_TIME - 3 );   //in seconds
@@ -42,6 +41,8 @@ class WPShortPixel {
 	public function __construct() {
 		
 		$this->populateOptions();
+		define('QUOTA_EXCEEDED', "Quota Exceeded. <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>Extend Quota</a>");		
+			
 		$this->setDefaultViewModeList();//set default mode as list. only @ first run
 
 		$this->_apiInterface = new shortpixel_api($this->_apiKey, $this->_compressionType);
@@ -133,6 +134,10 @@ class WPShortPixel {
 		if(get_option('wp-short-pixel-quota-exceeded') === false) {//min ID used for postmeta queries
 			add_option( 'wp-short-pixel-quota-exceeded', 0, '', 'yes' );
 		}	
+		
+		if(get_option('wp-short-pixel-protocol') === false) {//min ID used for postmeta queries
+			add_option( 'wp-short-pixel-protocol', 'https', '', 'yes' );
+		}			
 	
 	}
 	
@@ -143,7 +148,7 @@ class WPShortPixel {
 			delete_option('bulkProcessingStatus');		
 			delete_option( 'wp-short-pixel-cancel-pointer');
 			update_option( 'wp-short-pixel-query-id-stop', $endQueryID );
-			update_option( 'wp-short-pixel-query-id-start', $startQueryID );
+			update_option( 'wp-short-pixel-query-id-start', $startQueryID );			
 	}
 	
 	public function shortPixelDeactivatePlugin()//reset some params to avoid troubles for plugins that were activated/deactivated/activated
@@ -612,6 +617,7 @@ class WPShortPixel {
 
 	public function bulkProcess() {
 		global $wpdb,$startQueryID,$endQueryID;
+
 		echo '<h1>Bulk Image Optimization by ShortPixel</h1>';
 
 		if(MUST_HAVE_KEY && $this->_verifiedKey == false) {//invalid API Key
@@ -619,6 +625,16 @@ class WPShortPixel {
 			echo "<p>Don’t have an API Key yet? Get it now at <a href=\"https://shortpixel.com/wp-apikey\" target=\"_blank\">www.ShortPixel.com</a>, for free.</p>";
 			return;
 		}
+
+
+		if ( isset($_POST['bulkProcess']) )
+		{//set the thumbnails option 
+			if ( isset($_POST['thumbnails']) )
+				update_option('wp-short-process_thumbnails', 1);
+			else
+				update_option('wp-short-process_thumbnails', 0);
+		}
+			
 
 		if(isset($_GET['cancel'])) 
 		{//cancel an ongoing bulk processing, it might be needed sometimes
@@ -661,7 +677,7 @@ class WPShortPixel {
 		{
 			$noticeHTML = "<br/><div style=\"background-color: #fff; border-left: 4px solid %s; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px;\"><p>%s</p></div>";
 			$quotaData = $this->getQuotaInformation();
-		
+					
 			//maybe in the meantime the user added credits to their account?
 			
 			if ( $quotaData['APICallsQuotaNumeric'] > $quotaData['APICallsMadeNumeric'] )
@@ -670,8 +686,16 @@ class WPShortPixel {
 			}
 			else
 			{	
-				printf($noticeHTML, '#ff0000', "The plugin has optimized " . number_format($quotaData['APICallsMadeNumeric']) . " images and stopped because it reached the monthly limit which is " . number_format($quotaData['APICallsQuotaNumeric']) . ".<BR> See the other <a href='https://shortpixel.com/pricing' target='_blank'>options availbe</a> and <a href='https://shortpixel.com/login' target='_blank'>log into your account</a> to change your type of subscription.");	
+				printf($noticeHTML, '#ff0000', "The plugin has stopped because it reached the monthly limit. You can upgrade your ShortPixel plan by <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>logging into your account</a> - see the <a href='https://shortpixel.com/pricing' target='_blank'>options available</a><BR>The plugin successfully optimized " . number_format($quotaData['APICallsMadeNumeric']) . " images, with a " . round(get_option('wp-short-pixel-averageCompression'),2) . "% average compression rate. See your own stats by <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>checking your optimization reports</a>. <BR>" );
+			//fai	
+				
+				
+				//~ see the . number_format($quotaData['APICallsMadeNumeric']) . " images and stopped because it reached the monthly limit which is " . number_format($quotaData['APICallsQuotaNumeric']) . ".<BR> See the other <a href='https://shortpixel.com/pricing' target='_blank'>options availbe</a> and <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>log into your account</a> to change your type of subscription.");	
+				//~ 
 				return;
+				
+				//The plugin has stopped because it reached the monthly limit. You can upgrade your ShortPixel plan by logging into your account - see the options available
+				//fai stop bulk
 			}
 		}
 		
@@ -733,7 +757,7 @@ class WPShortPixel {
 			}
 		
 			delete_option('bulkProcessingStatus');
-			echo $this->getBulkProcessingForm($allFiles[0]->FilesToBeProcessed);
+			echo $this->getBulkProcessingForm();
 			echo '
                 <script type="text/javascript" >
                     var bulkProcessingRunning = false;
@@ -1023,14 +1047,49 @@ HTML;
 		}
 	}
 
-	public function getBulkProcessingForm($imageCount) {
+	public function getBulkProcessingForm() {
 		
-		$message = "</br>
-Currently, you have {$imageCount} images in your library. </br>
-</br>
-<form action='' method='POST' >
-<input type='submit' name='bulkProcess' id='bulkProcess' class='button button-primary' value='Compress all your images'>";
+		//image count 
+		$imageCount = $this->countAllProcessableFiles();
+		$imageOnlyThumbs = $imageCount['totalFiles'] - $imageCount['mainFiles'];
+		//average compression
+		$averageCompression = round(get_option('wp-short-pixel-averageCompression'),2);
 		
+		
+		if ( $averageCompression == 0 )
+		{
+			$message = "</br>
+		There are {$imageCount['mainFiles']} images in your library. </br>
+		The plugin will replace the original images with the smaller, compressed ones.<BR>
+		";
+				
+				if ( $this->_backupImages )
+					$message .= "A backup folder stores the originals in a separate place on your server.<BR>";
+		
+				$message .= "
+				Start the compression by clicking the button below.<BR>
+		</br>
+		<form action='' method='POST' >
+		<input type='submit' name='bulkProcess' id='bulkProcess' class='button button-primary' value='Compress all your images'>";
+		}
+		else
+		{
+			$message = "<BR>
+				<p>Before you start the image processing, please take into consideration the extra thumbnails (for each image in your Media Library, Wordress automatically creates smaller images for different screen resolutions, mobile, etc).</p>
+				<p>You now have {$imageCount['mainFiles']} images in your Media Library and {$imageOnlyThumbs} smaller thumbnails. Unless you uncheck the box below, ShortPixel will process a total of {$imageCount['totalFiles']} images.</p>
+				<p>Optimizing thumbnails is important for your mobile website speed. However, if you don't want to optimize thumbs, please uncheck the box below</p>";
+			
+			$message .= "<form action='' method='POST' >";
+			if ( $this->_processThumbnails )
+				$message .= "<input type='checkbox' name='thumbnails' checked> Include thumbnails";
+			else
+				$message .= "<input type='checkbox' name='thumbnails'> Include thumbnails";
+				
+			$message .= "<BR><BR><input type='submit' name='bulkProcess' id='bulkProcess' class='button button-primary' value='Compress all your images'>";	
+				
+		}
+		
+				
 		if ( get_option( 'wp-short-pixel-cancel-pointer') )//add also the resume bulk processing option
 			$message .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='bulkProcessResume' id='bulkProcessResume' class='button button-primary' value='Resume cancelled process'>";
 
@@ -1042,7 +1101,7 @@ Currently, you have {$imageCount} images in your library. </br>
 
 
 	public function getQuotaInformation($apiKey = null, $appendUserAgent = false) {
-
+	
 		if(is_null($apiKey)) { $apiKey = $this->_apiKey; }
 
 		$requestURL = 'https://api.shortpixel.com/v2/api-status.php';
@@ -1054,21 +1113,17 @@ Currently, you have {$imageCount} images in your library. </br>
 		if($appendUserAgent) {
 			$args['body']['useragent'] = "Agent" . urlencode($_SERVER['HTTP_USER_AGENT']);
 		}
-
 		$response = wp_remote_post($requestURL, $args);
 		
 		if(is_wp_error( $response )) //some hosting providers won't allow https:// POST connections so we try http:// as well
 			$response = wp_remote_post(str_replace('https://', 'http://', $requestURL), $args);	
-
-		if(is_wp_error( $response )) {
+			
+		if(is_wp_error( $response ))
 			$response = wp_remote_get(str_replace('https://', 'http://', $requestURL), $args);
-		}
-
-		
 
 		$defaultData = array(
 			"APIKeyValid" => false,
-			"Message" => 'API Key could not be validated. Could not connect to Shortpixel service.',
+			"Message" => 'API Key could not be validated due to a connectivity error.<BR>It is likely that your hosting provider doesn\'t allow connections to our servers via <i>wp_remote_post</i> command.<BR> If you need further assistance from us please <a href="https://shortpixel.com/contact" target="_blank">contact us</a>',
 			"APICallsMade" => 'Information unavailable. Please check your API key.',
 			"APICallsQuota" => 'Information unavailable. Please check your API key.');
 
@@ -1337,8 +1392,46 @@ Currently, you have {$imageCount} images in your library. </br>
 		$resultQuery = $wpdb->get_results($queryMax);
 		$startQueryID = $resultQuery[0]->startQueryID;
 		$endQueryID = $startQueryID;		
-		
 	}
+	
+	//count all the processable files in media library (while limiting the results to max 10000)
+	public function countAllProcessableFiles(){
+		global  $wpdb;
+		
+		$totalFiles = 0;
+		$mainFiles = 0;
+		$filesList= $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "postmeta
+										WHERE ( meta_key = '_wp_attached_file' OR meta_key = '_wp_attachment_metadata' ) LIMIT 10000");
+								
+
+		foreach ( $filesList as $file ) 
+		{
+			if ( $file->meta_key == "_wp_attached_file" )
+			{//count pdf files only
+				$extension = substr($file->meta_value, strrpos($file->meta_value,".") + 1 );
+				if ( $extension == "pdf" )
+				{
+					$totalFiles++;
+					$mainFiles++;
+				}
+			}
+			else
+			{
+				$attachment = unserialize($file->meta_value);
+				if ( isset($attachment['sizes']) )
+					$totalFiles += count($attachment['sizes']);			
+
+				if ( isset($attachment['file']) )
+				{
+					$totalFiles++;
+					$mainFiles++;
+				}
+			}
+		}	
+
+		return array("totalFiles" => $totalFiles, "mainFiles" => $mainFiles);
+}  
+
 
 	public function migrateBackupFolder() {
 		$oldBackupFolder = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'ShortpixelBackups';
