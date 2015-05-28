@@ -8,7 +8,7 @@ class shortpixel_api {
 	private $_apiKey = '';
 	private $_compressionType = '';
 	private $_maxAttempts = 10;
-	private $_apiEndPoint = 'https://api.shortpixel.com/v2/reducer.php';//fai
+	private $_apiEndPoint = 'https://api.shortpixel.com/v2/reducer.php';
 
 	public function setCompressionType($compressionType) {
 		$this->_compressionType = $compressionType;
@@ -356,6 +356,30 @@ class shortpixel_api {
 	
 	static public function returnSubDir($file)//return subdir for that particular attached file
 	{
+		$MultisiteExtraPath = "";
+		
+		if ( function_exists('is_multisite') && function_exists('get_current_blog_id') )
+		{//for dealing with WP Multisites
+			$BlogID = get_current_blog_id();
+			if ( is_multisite() && $BlogID > 1 ) //is a WP Multisite
+				$MultisiteExtraPath = "sites" . DIRECTORY_SEPARATOR . $BlogID . DIRECTORY_SEPARATOR;			
+		}
+		
+		$uploadDir = wp_upload_dir();	
+		
+		if ( !isset($file) || strpos($file, "/") === false )
+			$SubDir = "";
+		else
+			$SubDir = $MultisiteExtraPath . trim(substr($file,0,strrpos($file,"/")+1));		
+			
+		//remove upload dir from the URL if needed
+		$SubDir = str_ireplace($uploadDir['basedir'] . DIRECTORY_SEPARATOR ,"", $SubDir);
+
+		return $SubDir;
+	}
+
+	static public function returnSubDirURL($file)//return subdir for that particular attached file
+	{
 		
 		$uploadDir = wp_upload_dir();	
 		
@@ -363,7 +387,7 @@ class shortpixel_api {
 			$SubDir = "";
 		else
 			$SubDir = trim(substr($file,0,strrpos($file,"/")+1));		
-		
+			
 		//remove upload dir from the URL if needed
 		$SubDir = str_ireplace($uploadDir['basedir'] . DIRECTORY_SEPARATOR ,"", $SubDir);
 
