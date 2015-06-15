@@ -7,6 +7,7 @@ class shortpixel_api {
 
 	private $_apiKey = '';
 	private $_compressionType = '';
+	private $_CMYKtoRGBconversion = '';
 	private $_maxAttempts = 10;
 	private $_apiEndPoint = 'https://api.shortpixel.com/v2/reducer.php';
 
@@ -14,6 +15,9 @@ class shortpixel_api {
 		$this->_compressionType = $compressionType;
 	}
 
+	public function setCMYKtoRGB($CMYK2RGB) {
+		$this->_CMYKtoRGBconversion = $CMYK2RGB;
+	}
 	public function getCompressionType() {
 		return $this->_compressionType;
 	}
@@ -26,10 +30,10 @@ class shortpixel_api {
 		return $this->_apiKey;
 	}
 
-	public function __construct($apiKey, $compressionType) {
+	public function __construct($apiKey, $compressionType, $CMYK2RGB) {
 		$this->_apiKey = $apiKey;
 		$this->setCompressionType($compressionType);
-
+		$this->setCMYKtoRGB($CMYK2RGB);
 		add_action('processImageAction', array(&$this, 'processImageAction'), 10, 4);
 	}
 
@@ -60,6 +64,7 @@ class shortpixel_api {
 			'plugin_version' => PLUGIN_VERSION,
 			'key' => $this->_apiKey,
 			'lossy' => $this->_compressionType,
+			'cmyk2rgb' => $this->_CMYKtoRGBconversion,
 			'urllist' => $imageList
 		);
 		

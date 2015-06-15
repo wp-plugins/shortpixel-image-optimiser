@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimizes images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.1.7
+ * Version: 2.1.8
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -15,7 +15,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
   require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
 } 
 
-define('PLUGIN_VERSION', "2.1.7");
+define('PLUGIN_VERSION', "2.1.8");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
@@ -35,6 +35,7 @@ class WPShortPixel {
 	private $_apiKey = '';
 	private $_compressionType = 1;
 	private $_processThumbnails = 1;
+	private $_CMYKtoRGBconversion = 1;
 	private $_backupImages = 1;
 	private $_verifiedKey = false;
 
@@ -45,7 +46,7 @@ class WPShortPixel {
 			
 		$this->setDefaultViewModeList();//set default mode as list. only @ first run
 
-		$this->_apiInterface = new shortpixel_api($this->_apiKey, $this->_compressionType);
+		$this->_apiInterface = new shortpixel_api($this->_apiKey, $this->_compressionType, $this->_CMYKtoRGBconversion);
 		
 		//add hook for image upload processing
 		add_filter( 'wp_generate_attachment_metadata', array( &$this, 'handleImageUpload' ), 10, 2 );
@@ -99,6 +100,12 @@ class WPShortPixel {
 			$this->_processThumbnails = get_option('wp-short-process_thumbnails');
 		} else {
 			add_option('wp-short-process_thumbnails', $this->_processThumbnails, '', 'yes' );
+		}
+
+		if(get_option('wp-short-pixel_cmyk2rgb') !== false) {
+			$this->_CMYKtoRGBconversion = get_option('wp-short-pixel_cmyk2rgb');
+		} else {
+			add_option('wp-short-pixel_cmyk2rgb', $this->_CMYKtoRGBconversion, '', 'yes' );
 		}
 
 		if(get_option('wp-short-backup_images') !== false) {
@@ -690,7 +697,14 @@ class WPShortPixel {
 			}
 			else
 			{	
-				printf($noticeHTML, '#ff0000', "The plugin has stopped because it reached the monthly limit. You can upgrade your ShortPixel plan by <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>logging into your account</a> - see the <a href='https://shortpixel.com/pricing' target='_blank'>options available</a><BR>The plugin successfully optimized " . number_format($quotaData['APICallsMadeNumeric']) . " images, with a " . round(get_option('wp-short-pixel-averageCompression'),2) . "% average compression rate. See your own stats by <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>checking your optimization reports</a>. <BR>" );
+				printf($noticeHTML, '#ff0000', "<h3>Quota Exceeded</h3>
+				<p>
+				The plugin has optimized " . number_format($quotaData['APICallsMadeNumeric']) . " images and stopped because it reached the monthly limit.</p>
+				<p>
+				It’s simple to upgrade, just <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>log into your account</a> and see the options in the billing page.</p>
+				<p>
+				You can immediately start processing 5,000 images/month for &#36;4,99 or <a href='https://shortpixel.com/contact' target='_blank'>contact us</a> for larger compression needs.
+				</p>" );
 				
 				return;
 				
@@ -808,6 +822,13 @@ class WPShortPixel {
 
 		$noticeHTML = "<br/><div style=\"background-color: #fff; border-left: 4px solid %s; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px;\"><p>%s</p></div>";
 
+		//by default we try to fetch the API Key from wp-config.php (if defined)
+		if ( !isset($_POST['submit']) && !get_option('wp-short-pixel-verifiedKey') && strlen(SHORTPIXEL_API_KEY) == 20 )
+		{
+			$_POST['validate'] = "validate";
+			$_POST['key'] = SHORTPIXEL_API_KEY;		
+		}
+		
 		if(isset($_POST['submit']) || isset($_POST['validate'])) {
 			
 			//handle API Key - common for submit and validate
@@ -816,7 +837,7 @@ class WPShortPixel {
 			if ( strlen($_POST['key']) <> 20 )
 			{
 				$KeyLength = strlen($_POST['key']);
-				
+	
 				printf($noticeHTML, '#ff0000', "The key you provided has " .  $KeyLength . " characters. The API key should have 20 characters, letters and numbers only.<BR> <b>Please check that the API key is the same as the one you received in your confirmation email.</b><BR>
 				If this problem persists, please contact us at <a href='mailto:support@shortpixel.com?Subject=API Key issues' target='_top'>support@shortpixel.com</a> or <a href='https://shortpixel.com/contact' target='_blank'>here</a>.");
 			}
@@ -857,8 +878,10 @@ class WPShortPixel {
 				$this->_apiInterface->setCompressionType($this->_compressionType);
 				if(isset($_POST['thumbnails'])) { $this->_processThumbnails = 1; } else { $this->_processThumbnails = 0; }
 				if(isset($_POST['backupImages'])) { $this->_backupImages = 1; } else { $this->_backupImages = 0; }
+				if(isset($_POST['cmyk2rgb'])) { $this->_CMYKtoRGBconversion = 1; } else { $this->_CMYKtoRGBconversion = 0; }
 				update_option('wp-short-process_thumbnails', $this->_processThumbnails);
 				update_option('wp-short-backup_images', $this->_backupImages);
+				update_option('wp-short-pixel_cmyk2rgb', $this->_CMYKtoRGBconversion);
 			}
 		}
 
@@ -896,6 +919,10 @@ class WPShortPixel {
 
 		$checkedBackupImages = '';
 		if($this->_backupImages) { $checkedBackupImages = 'checked'; }
+		
+		$cmyk2rgb = '';
+		if($this->_CMYKtoRGBconversion) { $cmyk2rgb = 'checked'; }
+		
 
 		$formHTML = <<< HTML
 <form name='wp_shortpixel_options' action=''  method='post' id='wp_shortpixel_options'>
@@ -909,6 +936,7 @@ class WPShortPixel {
 HTML;
 
 		if(!$this->_verifiedKey) {
+
 			//if invalid key we display the link to the API Key
 			$formHTML .= '<tr><td style="padding-left: 0px;" colspan="2">Don’t have an API Key? <a href="https://shortpixel.com/wp-apikey" target="_blank">Sign up, it’s free.</a></td></tr>';
 			$formHTML .= '</form>';
@@ -950,6 +978,12 @@ clip art and comics.
 <input name="backupImages" type="checkbox" id="backupImages" {$checkedBackupImages}> Save and keep a backup of your original images in a separate folder.
 </td>
 </tr>
+<tr>
+<th scope="row"><label for="backupImages">CMYK to RGB conversion</label></th>
+<td>
+<input name="cmyk2rgb" type="checkbox" id="cmyk2rgb" {$cmyk2rgb}>Adjust your images for computer and mobile screen display.
+</td>
+</tr>
 </tr>
 </tbody></table>
 <p class="submit">
@@ -979,22 +1013,23 @@ HTML;
 			$fileCount = number_format(get_option('wp-short-pixel-fileCount'));
 			$savedSpace = self::formatBytes(get_option('wp-short-pixel-savedSpace'),2);
 			$averageCompression = round(get_option('wp-short-pixel-averageCompression'),2);
-			$savedBandwidth = self::formatBytes(get_option('wp-short-pixel-savedSpace') * 1000,2);
+			$savedBandwidth = self::formatBytes(get_option('wp-short-pixel-savedSpace') * 10000,2);
 			$quotaData = $this->getQuotaInformation();
 			if (is_numeric($quotaData['APICallsQuota'])) {
 				$quotaData['APICallsQuota'] .= "/month";
 			}
 			$backupFolderSize = self::formatBytes(self::folderSize(SP_BACKUP_FOLDER));
-			$remainingImages = (int)str_replace(',', '', $quotaData['APICallsQuota']) - (int)str_replace(',', '', $quotaData['APICallsMade']);
-			$remainingImages = number_format($remainingImages);
-
+			$remainingImages = number_format($quotaData['APICallsQuotaNumeric'] + $quotaData['APICallsQuotaOneTimeNumeric'] - $quotaData['APICallsMadeNumeric'] - $quotaData['APICallsMadeOneTimeNumeric'] );
+			$totalCallsMade = number_format($quotaData['APICallsMadeNumeric'] + $quotaData['APICallsMadeOneTimeNumeric']);
+			
 			$statHTML = <<< HTML
 <a id="facts"></a>
 <h3>Your ShortPixel Stats</h3>
 <table class="form-table">
-<tbody><tr>
-<th scope="row"><label for="totalFiles">Total number of processed files:</label></th>
-<td>{$fileCount}</td>
+<tbody>
+<tr>
+<th scope="row"><label for="averagCompression">Average compression of your files:</label></th>
+<td>$averageCompression%</td>
 </tr>
 <tr>
 <th scope="row"><label for="savedSpace">Saved disk space by ShortPixel</label></th>
@@ -1006,24 +1041,40 @@ HTML;
 </tr>
 </tbody></table>
 
-<p style="padding-top: 0px; color: #818181;" >* Saved bandwidth is calculated at 100,000 impressions/image</p>
+<p style="padding-top: 0px; color: #818181;" >* Saved bandwidth is calculated at 10,000 impressions/image</p>
+
+<h3>Your ShortPixel Plan</h3>
 <table class="form-table">
-<tbody><tr>
-<th scope="row"><label for="apiQuota">Your ShortPixel plan</label></th>
-<td>{$quotaData['APICallsQuota']} ( <a href="https://shortpixel.com/login/{$this->_apiKey}" target="_blank">See more options</a> )
+<tbody>
+<tr>
+<th scope="row" bgcolor="#ffffff"><label for="apiQuota">Your ShortPixel plan</label></th>
+<td bgcolor="#ffffff">{$quotaData['APICallsQuota']}/month ( <a href="https://shortpixel.com/login/{$this->_apiKey}" target="_blank">Need More? See the options available</a> )
+</tr>
+<tr>
+<th scope="row"><label for="usedQUota">One time credits:</label></th>
+<td>{$quotaData['APICallsQuotaOneTimeNumeric']}</td>
 </tr>
 <tr>
 <th scope="row"><label for="usedQUota">Number of images processed this month:</label></th>
-<td>{$quotaData['APICallsMade']}</td>
+<td>{$totalCallsMade}</td>
 </tr>
 <tr>
-<th scope="row"><label for="remainingImages">Remaining images in your plan:  </label></th>
+<th scope="row"><label for="remainingImages">Remaining** images in your plan:  </label></th>
 <td>{$remainingImages} images</td>
 </tr>
+</tbody></table>
+
+<p style="padding-top: 0px; color: #818181;" >** Increase your image quota by <a href="https://shortpixel.com/login/{$this->_apiKey}" target="_blank">upgrading</a> your ShortPixel plan.</p>
+
+<table class="form-table">
+<tbody>
 <tr>
-<th scope="row"><label for="averagCompression">Average compression of your files:</label></th>
-<td>$averageCompression%</td>
+<th scope="row"><label for="totalFiles">Total number of processed files:</label></th>
+<td>{$fileCount}</td>
 </tr>
+
+
+
 HTML;
 			if($this->_backupImages) {
 				$statHTML .= <<< HTML
@@ -1042,7 +1093,6 @@ HTML;
 			$statHTML .= <<< HTML
 </tbody></table>
 HTML;
-			$statHTML .= '<p style="padding-top: 0px; color: #818181;" >Increase your image quota by <a href="https://shortpixel.com/login/'.$this->_apiKey.'" target="_blank">upgrading</a> your ShortPixel plan.</p>';
 
 			echo $statHTML;
 		
@@ -1079,17 +1129,18 @@ HTML;
 		else
 		{
 			$message = "<BR>
-				<p>Before you start the image processing, please take into consideration the extra thumbnails (for each image in your Media Library, WordPress automatically creates smaller images for different screen resolutions, mobile, etc).</p>
-				<p>You now have ".number_format($imageCount['mainFiles'])." images in your Media Library and ".number_format($imageOnlyThumbs)." smaller thumbnails. Unless you uncheck the box below, ShortPixel will process a total of ".number_format($imageCount['totalFiles'])." images.</p>
-				<p>Optimizing thumbnails is important for your mobile website speed. However, if you don't want to optimize thumbs, please uncheck the box below</p>";
+				<p>You have ".number_format($imageCount['mainFiles'])." images in your Media Library and ".number_format($imageOnlyThumbs)." smaller thumbnails, associated to these images.</p>
+				<p>Unless you uncheck the box below, <b>ShortPixel will process a total of ".number_format($imageCount['totalFiles'])." images.</b></p>";
 			
 			$message .= "<form action='' method='POST' >";
 			if ( $this->_processThumbnails )
 				$message .= "<input type='checkbox' name='thumbnails' checked> Include thumbnails";
 			else
 				$message .= "<input type='checkbox' name='thumbnails'> Include thumbnails";
+			
+			$message .= "<BR><BR>Optimizing thumbnails is important for your overall website speed. However, if you don't want to optimize thumbs, please uncheck the box above.";	
 				
-			$message .= "<BR><BR><input type='submit' name='bulkProcess' id='bulkProcess' class='button button-primary' value='Compress all your images'>";	
+			$message .= "<BR><BR><input type='submit' name='bulkProcess' id='bulkProcess' class='button button-primary' value='Start Compression'>";	
 				
 		}
 		
@@ -1155,17 +1206,21 @@ HTML;
 			return $defaultData;
 		}
 
-		if ( $data->APICallsMade < $data->APICallsQuota ) //reset quota exceeded flag -> user is allowed to process more images.
+		if ( ( $data->APICallsMade + $data->APICallsMadeOneTime ) < ( $data->APICallsQuota + $data->APICallsQuotaOneTime ) ) //reset quota exceeded flag -> user is allowed to process more images. 
 			update_option('wp-short-pixel-quota-exceeded',0);
 		else
 			update_option('wp-short-pixel-quota-exceeded',1);//activate quota limiting			
-					
+									
 		return array(
 			"APIKeyValid" => true,
 			"APICallsMade" => number_format($data->APICallsMade) . ' images',
 			"APICallsQuota" => number_format($data->APICallsQuota) . ' images',
+			"APICallsMadeOneTime" => number_format($data->APICallsMadeOneTime) . ' images',
+			"APICallsQuotaOneTime" => number_format($data->APICallsQuotaOneTime) . ' images',
 			"APICallsMadeNumeric" => $data->APICallsMade,
-			"APICallsQuotaNumeric" => $data->APICallsQuota
+			"APICallsQuotaNumeric" => $data->APICallsQuota,
+			"APICallsMadeOneTimeNumeric" => $data->APICallsMadeOneTime,
+			"APICallsQuotaOneTimeNumeric" => $data->APICallsQuotaOneTime
 		);
 
 

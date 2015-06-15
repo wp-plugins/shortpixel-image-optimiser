@@ -4,7 +4,7 @@ Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, tinypng, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize, pdf, pdf optimisation, pdf optimization, optimize pdf, optimise pdf, shrink pdf, jpg, jpeg, jpg optimisation, jpg optimization, optimize jpg, optimise jpg, shrink jpg, gif, animated gif, optimize gif, optimise gif
 Requires at least: 3.0.0 or higher
 Tested up to: 4.2
-Stable tag: 2.1.7
+Stable tag: 2.1.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -72,10 +72,13 @@ To get your API key, you must <a href="https://shortpixel.com/wp-apikey">Sign up
 
 You use the API key in the ShortPixel plugin Settings (don’t forget to click Save Settings). The same API key can be used on multiple websites/blogs. 
 
-= How do I activate the API key on a multisite? = 
+= How do I activate the API key on a multisite? =
 
-You have to activate the plugin in the network admin and then activate it manually via the plugins page on each individual site in the multisite. 
-Once you have done that, the Settings menu appears and you can add the API key for each individual site. 
+You have to activate the plugin in the network admin and then activate it manually on each individual site in the multisite. Once you have done that, the Settings menu appears and you can add the API key for each individual site.
+
+As an alternative, you can edit wp-config.php and add this line
+define('SHORTPIXEL_API_KEY', 'APIKEY')
+where 'APIKEY' is the API Key received upon sign up.
 
 = How does Bulk Optimization work? = 
 
@@ -115,9 +118,18 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 
 == Changelog ==
 
+= 2.1.8 =
+
+* improved texts/explanations for different sections
+* added extra option to convert CMYK to RGB for further size reduction
+* display credits for one time payments as well
+* API Key can also be configured in wp-config.php like this: define('SHORTPIXEL_API_KEY', 'YOUR_API_KEY'); Useful for multisite installations
+
+
 = 2.1.7 = 
 * improved checking and reporting of firewall restriction on client side
 * optimized files are saved in the right location when dealing with WP Multisite
+* updated screenshots
 
 = 2.1.6 = 
 
