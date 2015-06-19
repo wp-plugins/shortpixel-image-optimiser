@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimizes images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.1.8
+ * Version: 2.1.9
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -15,7 +15,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
   require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
 } 
 
-define('PLUGIN_VERSION', "2.1.8");
+define('PLUGIN_VERSION', "2.1.9");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
@@ -851,7 +851,12 @@ class WPShortPixel {
 				if($validityData['APIKeyValid']) {
 					if(isset($_POST['validate'])) {
 						//display notification
-						printf($noticeHTML, '#7ad03a', 'API Key valid!');
+                        if(in_array($_SERVER["SERVER_ADDR"], array("127.0.0.1","::1"))) {
+                            printf($noticeHTML, '#FFC800', "API Key is valid but your server seems to have a local address. 
+                                   Please make sure that your server is accessible from the Internet before using the API or otherwise we won't be able to optimize them.");
+                        } else {
+                            printf($noticeHTML, '#7ad03a', 'API Key valid!');
+                        }
 					}
 					update_option('wp-short-pixel-verifiedKey', true);
 					$this->_verifiedKey = true;
@@ -1291,7 +1296,7 @@ HTML;
 				{
 					if ( trim(strip_tags($data['ShortPixelImprovement'])) == "Quota exceeded" )
 						{
-							print $data['ShortPixelImprovement'];
+							print QUOTA_EXCEEDED;
 							if ( !get_option('wp-short-pixel-quota-exceeded') )
 								print " | <a href=\"admin.php?action=shortpixel_manual_optimize&amp;attachment_ID={$id}\">Try again</a>";
 							return;
