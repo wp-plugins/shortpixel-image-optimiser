@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel is an image compression tool that helps improve your website performance. The plugin optimizes images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original. To install: 1) Click the "Activate" link to the left of this description. 2) <a href="https://shortpixel.com/wp-apikey" target="_blank">Free Sign up</a> for your unique API Key . 3) Check your email for your API key. 4) Use your API key to activate ShortPixel plugin in the 'Plugins' menu in WordPress. 5) Done!
- * Version: 2.1.9
+ * Version: 2.1.10
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -15,7 +15,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
   require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
 } 
 
-define('PLUGIN_VERSION', "2.1.9");
+define('PLUGIN_VERSION', "2.1.10");
 define('SP_DEBUG', false);
 define('SP_LOG', false);
 define('SP_MAX_TIMEOUT', 10);
@@ -236,7 +236,16 @@ class WPShortPixel {
 						update_option("wp-short-pixel-query-id-start", $ID);
 				
 				self::log("Processing image id {$ID}");
-				$url = wp_get_attachment_url($ID);
+                
+                //turn relative paths to absolute
+                if ( !parse_url(WP_CONTENT_URL, PHP_URL_SCHEME) )
+                    {//no absolute URLs used -> we implement a hack
+                        $url = get_site_url() . wp_get_attachment_url($ID);//get the file URL 
+                    }
+                else
+                        $url = wp_get_attachment_url($ID);//get the file URL
+                        
+                
 				$path = get_attached_file($ID);
 				if(self::isProcessable($path) != false) 
 				{
@@ -470,10 +479,22 @@ class WPShortPixel {
 			
 			$imageIndex=0;
 			$ID = $itemDetails->post_id;
-			$imageURL =  wp_get_attachment_url($ID);
+			//turn relative paths to absolute
+            if ( !parse_url(WP_CONTENT_URL, PHP_URL_SCHEME) )
+                {//no absolute URLs used -> we implement a hack
+                    $imageURL = get_site_url() . wp_get_attachment_url($ID);//get the file URL 
+                }
+            else
+                    $imageURL = wp_get_attachment_url($ID);//get the file URL
+       
 			$imagePath = get_attached_file($ID);
 			$meta = wp_get_attachment_metadata($ID);	
 			$uploadDir = wp_upload_dir();
+            
+            //generate absolute URL if needed
+            if ( !parse_url($uploadDir['baseurl'], PHP_URL_SCHEME) )
+                $uploadDir['baseurl'] = get_site_url() . $uploadDir['baseurl'];
+                
 
 			if ( empty($meta['file']) )//file has no metadata attached (like PDF files uploaded before SP plugin)
 				{
@@ -513,7 +534,14 @@ class WPShortPixel {
 	public function handleManualOptimization() {
 		$attachmentID = intval($_GET['attachment_ID']);
 
-		$urlList[] = wp_get_attachment_url($attachmentID);
+        //turn relative paths to absolute when needed
+        if ( !parse_url(WP_CONTENT_URL, PHP_URL_SCHEME) )
+        {//no absolute URLs used -> we implement a hack
+            $urlList[] = get_site_url() . wp_get_attachment_url($attachmentID);//get the file URL 
+        }
+        else
+            $urlList[] = wp_get_attachment_url($attachmentID);//get the file URL
+       
 		$filePath[] = get_attached_file($attachmentID);
 		$meta = wp_get_attachment_metadata($attachmentID);
 
