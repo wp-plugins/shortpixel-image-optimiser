@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.0.0
+ * Version: 3.0.1
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -19,7 +19,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
 
 define('SP_RESET_ON_ACTIVATE', false);
 
-define('PLUGIN_VERSION', "3.0.0");
+define('PLUGIN_VERSION', "3.0.1");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);

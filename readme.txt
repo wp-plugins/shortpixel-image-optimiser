@@ -5,11 +5,11 @@ Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, co
 
 Requires at least: 3.0.0 or higher
 Tested up to: 4.2
-Stable tag: 3.0.0
+Stable tag: 3.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Fast, easy-to-use lightweight plugin that optimizes images & PDFs up to 90%. ShortPixel makes your website faster and preserves a high quality of the images.
+Fast, easy-to-use and lightweight plugin that optimizes images & PDFs. Preserve a high visual quality of images and make your website load faster.
 
 == Description ==
 
