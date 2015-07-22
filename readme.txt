@@ -5,7 +5,7 @@ Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, co
 
 Requires at least: 3.0.1 or higher
 Tested up to: 4.2
-Stable tag: 3.0.2
+Stable tag: 3.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,7 +119,7 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 
 == Changelog ==
 
-= 3.0.2 =
+= 3.0.3 =
 
 * Progress bar improvements
 
