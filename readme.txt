@@ -3,9 +3,9 @@
 Contributors: AlexSP
 Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, jpegtran,image, image optimisation, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures,fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize, pdf, pdf optimisation, pdf optimization, optimize pdf, optimise pdf, shrink pdf, jpg, jpeg, jpg optimisation, jpg optimization, optimize jpg, optimise jpg, shrink jpg, gif, animated gif, optimize gif, optimise gif, optimizer, optimiser, compresion, optimization, cruncher, image cruncher, compress png, compress jpg, compress jpeg, faster loading times, image optimiser, improve pagerank, optimise, optimize animated gif,  optimise jpeg, optimize jpeg, optimize png, optimise png, tinyjpg, short pixel, shortpixel
 
-Requires at least: 3.0.0 or higher
+Requires at least: 3.0.1 or higher
 Tested up to: 4.2
-Stable tag: 3.0.1
+Stable tag: 3.0.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -118,6 +118,10 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 3.0.3 =
+
+* Progress bar improvements
 
 = 3.0.0 = 
 

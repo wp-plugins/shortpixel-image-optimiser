@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.0.1
+ * Version: 3.0.3
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -19,7 +19,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
 
 define('SP_RESET_ON_ACTIVATE', false);
 
-define('PLUGIN_VERSION', "3.0.1");
+define('PLUGIN_VERSION', "3.0.3");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -134,6 +134,7 @@ class WPShortPixel {
             update_option( 'wp-short-pixel-bulk-ever-ran', 0);
             delete_option('wp-short-pixel-priorityQueue');
             unset($_SESSION["wp-short-pixel-priorityQueue"]);
+            delete_option("wp-short-pixel-bulk-previous-percent");
         }
     }
     
@@ -188,6 +189,10 @@ class WPShortPixel {
     }
 
     function toolbar_shortpixel_processing( $wp_admin_bar ) {
+        if ( !is_admin())  {
+            return;
+        }
+        
         wp_enqueue_script('short-pixel.js', plugins_url('/js/short-pixel.js',__FILE__) );
         
         $extraClasses = " shortpixel-hide";
@@ -376,7 +381,7 @@ class WPShortPixel {
     }
 
     public function handleImageProcessing($ID = null) {
-        //die();
+        //die("bau");
         //0: check key
         if( $this->_verifiedKey == false) {
             echo "Missing API Key";
@@ -395,7 +400,6 @@ class WPShortPixel {
                 if($bulkItems){
                     $ids = array_merge ($ids, $bulkItems);
                 }
-                $this->prioQ->addBulkSkipped($res['skipped']);
             }
         }
         if ($ids === false || count( $ids ) == 0 ){
@@ -441,6 +445,8 @@ class WPShortPixel {
                 
                 $deltaBulkPercent = $this->prioQ->getDeltaBulkPercent(); 
                 $msg = $this->bulkProgressMessage($deltaBulkPercent, $this->prioQ->getTimeRemaining());
+                $result["BulkPercent"] = $this->prioQ->getBulkPercent();;
+                $result["BulkMsg"] = $msg;
                 
                 $thumb = $bkThumb = "";
                 $percent = 0;
@@ -460,8 +466,6 @@ class WPShortPixel {
                     }
                     $result["Thumb"] = $thumb;
                     $result["BkThumb"] = $bkThumb;
-                    $result["BulkPercent"] = $this->prioQ->getBulkPercent();;
-                    $result["BulkMsg"] = $msg;
                 }
             }
         }
