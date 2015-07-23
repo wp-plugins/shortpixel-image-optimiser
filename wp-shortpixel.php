@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.0.3
+ * Version: 3.0.5
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -19,7 +19,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
 
 define('SP_RESET_ON_ACTIVATE', false);
 
-define('PLUGIN_VERSION', "3.0.3");
+define('PLUGIN_VERSION', "3.0.5");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -191,14 +191,13 @@ class WPShortPixel {
     function toolbar_shortpixel_processing( $wp_admin_bar ) {
         if ( !is_admin())  {
             return;
-        }
-        
+        }        
         wp_enqueue_script('short-pixel.js', plugins_url('/js/short-pixel.js',__FILE__) );
         
         $extraClasses = " shortpixel-hide";
         $tooltip = "ShortPixel optimizing...";
         $icon = "shortpixel.png";
-        $link = 'upload.php?page=wp-short-pixel-bulk';
+        $link = current_user_can( 'edit_others_posts')? 'upload.php?page=wp-short-pixel-bulk' : 'upload.php';
         $blank = "";
         if($this->prioQ->processing()) {
             $extraClasses = " shortpixel-processing";
@@ -323,9 +322,6 @@ class WPShortPixel {
                 LIMIT " . SP_MAX_RESULTS_QUERY;
             $resultsPostMeta = $wpdb->get_results($queryPostMeta);
 
-            if($sanityCheck > 1000) {
-                die("oops! $crtStartQueryID -- $startQueryID -> $endQueryID");
-            }
             if ( empty($resultsPostMeta) ) {
                 $crtStartQueryID -= SP_MAX_RESULTS_QUERY;
                 continue;
@@ -757,7 +753,7 @@ class WPShortPixel {
     }
     
     public function renderSettingsMenu() {
-        if ( !current_user_can( 'manage_options' ) )  {
+        if ( !current_user_can( 'manage_options' ) )  { 
             wp_die('You do not have sufficient permissions to access this page.');
         }
 
