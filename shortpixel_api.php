@@ -140,9 +140,6 @@ class ShortPixelAPI {
             }
         }
         $response = $this->doRequests($URLs, true, $ID);//send requests to API
-        WPShortPixel::log("FAIPASS:" . json_encode($response));//fai remove
-        WPShortPixel::log("FAIPASS:" . json_encode($URLs));//fai remove
-        WPShortPixel::log("FAIPASS:" . $apiRetries);//fai remove
     
         if($response['response']['code'] != 200)//response <> 200 -> there was an error apparently?
             return array("Status" => self::STATUS_FAIL, "Message" => "There was an error and your request was not processed.");
