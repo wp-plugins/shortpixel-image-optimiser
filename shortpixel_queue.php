@@ -246,7 +246,7 @@ class ShortPixelQueue {
         WPShortPixel::log("QUEUE - BulkPrevPercent: " . $this->bulkPreviousPercent . " BulkCurrentlyProcessing: "
                 . $this->bulkCurrentlyProcessed . " out of " . $this->getBulkToProcess());
         
-        if($this->getBulkToProcess() <= 0) return 100;
+        if($this->getBulkToProcess() <= 0) return ($this->processing () ? 99: 100);
         // return maximum 99%
         $percent = $this->bulkPreviousPercent + round($this->bulkCurrentlyProcessed / $this->getBulkToProcess()
                                               * (100 - $this->bulkPreviousPercent));

@@ -8,10 +8,17 @@ jQuery(document).ready(function($){
         //register a bulk action
         jQuery('select[name^="action"] option:last-child').before('<option value="short-pixel-bulk">Optimize with ShortPixel</option>');
     }    
+    //
+    jQuery(window).unload(function(){
+        if(ShortPixel.bulkProcessor == true) {        
+            clearBulkProcessor();
+        }
+    });
     //check if  bulk processing
     checkQuotaExceededAlert();
     checkBulkProgress();
 });
+
 
 var ShortPixel = function() {
 
@@ -163,6 +170,7 @@ function setCellMessage(id, message){
 function manualOptimization(id) {
     setCellMessage(id, "<img src='" + ShortPixel.WP_PLUGIN_URL + "/shortpixel-image-optimiser/img/loading.gif'>Image waiting to be processed");
     jQuery("li.shortpixel-toolbar-processing").removeClass("shortpixel-hide");
+    jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-processing");
     var data = { action  : 'shortpixel_manual_optimization',
                  image_id: id};
     jQuery.get(ajaxurl, data, function(response) {
@@ -231,10 +239,10 @@ function sliderUpdate(id, thumb, bkThumb, percent){
     oldSlide.css("z-index", 1000);
     jQuery(".bulk-img-opt", newSlide).attr("src", thumb);
     if(bkThumb.length > 0) {
-        jQuery(".img-original", newSlide).show();
+        jQuery(".img-original", newSlide).css("display", "inline-block");
         jQuery(".bulk-img-orig", newSlide).attr("src", bkThumb);
     } else {
-        jQuery(".img-original", newSlide).hide();
+        jQuery(".img-original", newSlide).css("display", "none");
     }
     jQuery(".bulk-opt-percent", newSlide).text(percent + "%");
     

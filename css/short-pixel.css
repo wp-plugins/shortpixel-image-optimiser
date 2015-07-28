@@ -42,6 +42,10 @@ li.shortpixel-hide {
 .bulk-progress.bulk-stats > div.label{
     width: 320px;
 }
+.bulk-progress.bulk-stats > div.stat-value{
+    width: 80px;
+    text-align: right;
+}
 .progress {
     background-color: #ecedee;
     height: 30px;
@@ -82,7 +86,7 @@ li.shortpixel-hide {
     vertical-align: top;
     display: inline-block;
 }
-.wp-core-ui .button-secondary.bulk-cancel {
+.wp-core-ui .button-primary.bulk-cancel {
     float: right;
     height: 30px;
 }
