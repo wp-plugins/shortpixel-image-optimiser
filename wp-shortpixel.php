@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.0.3
+ * Version: 3.0.6
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -19,7 +19,7 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
 
 define('SP_RESET_ON_ACTIVATE', false);
 
-define('PLUGIN_VERSION', "3.0.3");
+define('PLUGIN_VERSION', "3.0.6");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -52,8 +52,12 @@ class WPShortPixel {
     }
 
     public function __construct() {
-        session_start();
-        
+        if(!is_admin()) {
+            return;
+        }
+        if (!session_id()) {
+            session_start();
+        }
         $this->populateOptions();
 
         $this->_apiInterface = new ShortPixelAPI($this->_apiKey, $this->_compressionType, $this->_CMYKtoRGBconversion);
@@ -189,16 +193,12 @@ class WPShortPixel {
     }
 
     function toolbar_shortpixel_processing( $wp_admin_bar ) {
-        if ( !is_admin())  {
-            return;
-        }
-        
         wp_enqueue_script('short-pixel.js', plugins_url('/js/short-pixel.js',__FILE__) );
         
         $extraClasses = " shortpixel-hide";
         $tooltip = "ShortPixel optimizing...";
         $icon = "shortpixel.png";
-        $link = 'upload.php?page=wp-short-pixel-bulk';
+        $link = current_user_can( 'edit_others_posts')? 'upload.php?page=wp-short-pixel-bulk' : 'upload.php';
         $blank = "";
         if($this->prioQ->processing()) {
             $extraClasses = " shortpixel-processing";
@@ -323,9 +323,6 @@ class WPShortPixel {
                 LIMIT " . SP_MAX_RESULTS_QUERY;
             $resultsPostMeta = $wpdb->get_results($queryPostMeta);
 
-            if($sanityCheck > 1000) {
-                die("oops! $crtStartQueryID -- $startQueryID -> $endQueryID");
-            }
             if ( empty($resultsPostMeta) ) {
                 $crtStartQueryID -= SP_MAX_RESULTS_QUERY;
                 continue;
@@ -385,7 +382,7 @@ class WPShortPixel {
         //0: check key
         if( $this->_verifiedKey == false) {
             echo "Missing API Key";
-            die();
+            die("Missing API Key");
         }
         
         self::log("HIP: 0 Priority Queue: ".json_encode($this->prioQ->get()));
@@ -458,7 +455,7 @@ class WPShortPixel {
                     $uploadsUrl = content_url() . "/uploads/";
                     $urlPath = implode("/", array_slice($filePath, 0, count($filePath) - 1));
                     $thumb = (isset($meta["sizes"]["medium"]) ? $meta["sizes"]["medium"]["file"] : (isset($meta["sizes"]["thumbnail"]) ? $meta["sizes"]["thumbnail"]["file"]: ""));
-                    if(strlen($thumb) && get_option('wp-short-backup_images')) {
+                    if(strlen($thumb) && get_option('wp-short-backup_images') && $this->_processThumbnails) {
                         $bkThumb = $uploadsUrl . SP_BACKUP . "/" . $urlPath . "/" . $thumb;
                     }
                     if(strlen($thumb)) {
@@ -498,6 +495,7 @@ class WPShortPixel {
         } else {
             die(var_dump($pathParts));            
         }
+        //TODO curata functia asta
         die(json_encode($ret));
 
         $urlList[] = wp_get_attachment_url($attachmentID);
@@ -757,7 +755,7 @@ class WPShortPixel {
     }
     
     public function renderSettingsMenu() {
-        if ( !current_user_can( 'manage_options' ) )  {
+        if ( !current_user_can( 'manage_options' ) )  { 
             wp_die('You do not have sufficient permissions to access this page.');
         }
 
@@ -769,7 +767,11 @@ class WPShortPixel {
                 <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/" target="_blank">Installation </a> |
                 <a href="https://shortpixel.com/contact" target="_blank">Support </a>
               </p>';
-        echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimization Tool</a>.</p>';
+        if($this->_verifiedKey) {
+            echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimization Tool</a>.</p>';
+        } else {
+            echo '<p>Please enter here the API Key provided by ShortPixel:</p>';
+        }
 
         $noticeHTML = "<br/><div style=\"background-color: #fff; border-left: 4px solid %s; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px;\"><p>%s</p></div>";
 
@@ -790,7 +792,7 @@ class WPShortPixel {
                 $KeyLength = strlen($_POST['key']);
     
                 printf($noticeHTML, '#ff0000', "The key you provided has " .  $KeyLength . " characters. The API key should have 20 characters, letters and numbers only.<BR> <b>Please check that the API key is the same as the one you received in your confirmation email.</b><BR>
-                If this problem persists, please contact us at <a href='mailto:support@shortpixel.com?Subject=API Key issues' target='_top'>support@shortpixel.com</a> or <a href='https://shortpixel.com/contact' target='_blank'>here</a>.");
+                If this problem persists, please contact us at <a href='mailto:help@shortpixel.com?Subject=API Key issues' target='_top'>help@shortpixel.com</a> or <a href='https://shortpixel.com/contact' target='_blank'>here</a>.");
             }
             else
             {
@@ -1461,18 +1463,15 @@ HTML;
         {
             $filesList= $wpdb->get_results("SELECT * FROM " . $wpdb->prefix . "postmeta
                                         WHERE ( post_id <= $maxId AND post_id > $minId ) 
-                                          AND ( meta_key = '_wp_attached_file' OR meta_key = '_wp_attachment_metadata' ) 
+                                          AND ( meta_key = '_wp_attachment_metadata' ) 
                                         LIMIT $pointer,$limit");
             if ( empty($filesList) ) {//we parsed all the results
                 break;
             }
             foreach ( $filesList as $file ) 
             {
-                if ( $file->meta_key == "_wp_attached_file" ) {
-                    continue;
-                }
                 $attachment = unserialize($file->meta_value);
-                if ( isset($attachment['ShortPixelImprovement']) && $attachment['ShortPixelImprovement'] > 0 ) {
+                if ( isset($attachment['ShortPixelImprovement']) && ($attachment['ShortPixelImprovement'] > 0 || $attachment['ShortPixelImprovement'] === 0.0)) {
                     $processedMainFiles++;            
                     $processedTotalFiles++;            
                     if ( isset($attachment['sizes']) ) {

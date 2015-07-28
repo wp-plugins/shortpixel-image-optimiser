@@ -170,9 +170,9 @@ class ShortPixelAPI {
                 if ( !file_exists($PATHs[0]) )
                     return array("Status" => self::STATUS_NOT_FOUND, "Message" => "File not found on disk.");
                 elseif ( isset($APIresponse[0]->Status->Message) ) 
-                    return array("Status" => self::STATUS_FAIL, "Message" => "There was an error and your request was not processed.");                
+                    return array("Status" => self::STATUS_FAIL, "Message" => "There was an error and your request was not processed (" . $APIresponse[0]->Status->Message . ").");                
                 
-                return "Unknown error";
+                return array("Status" => self::STATUS_FAIL, "Message" => "There was an error and your request was not processed");
                 break;
             }
         }
@@ -229,8 +229,8 @@ class ShortPixelAPI {
         } 
         //check response so that download is OK
         elseif( filesize($tempFiles[$counter]) != $correctFileSize) {
-            @unlink($tempFiles[$counter]);
             $size = filesize($tempFiles[$counter]);
+            @unlink($tempFiles[$counter]);
             $returnMessage = array("Status" => self::STATUS_ERROR, "Message" => "Error downloading file - incorrect file size (downloaded: {$size}, correct: {$correctFileSize} )");
         }
         elseif (!file_exists($tempFiles[$counter])) {
