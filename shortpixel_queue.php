@@ -262,7 +262,7 @@ class ShortPixelQueue {
     
     public function getTimeRemaining (){
         $p = $this->getBulkPercent();
-        $pAlready = round($this->bulkAlreadyDoneCount / $this->bulkCount * 100);
+        $pAlready = $this->bulkCount == 0 ? 0 : round($this->bulkAlreadyDoneCount / $this->bulkCount * 100);
 //        die("" . ($this->lastBulkSuccessTime - $this->lastBulkStartTime));
         if(($p - $pAlready) == 0) return 0;
         return round(((100 - $p) / ($p - $pAlready)) * ($this->bulkRunningTime + $this->lastBulkSuccessTime - $this->lastBulkStartTime)/60);
