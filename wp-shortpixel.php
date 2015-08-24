@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.0.6
+ * Version: 3.0.7
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -13,19 +13,21 @@ require_once('shortpixel_queue.php');
 require_once('shortpixel_view.php');
 require_once( ABSPATH . 'wp-admin/includes/image.php' );
 include_once( ABSPATH . 'wp-admin/includes/plugin.php' ); 
-if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) ) {
+if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) && !is_plugin_active( 'wp-ses/wp-ses.php' ) ) {
   require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
 } 
 
 define('SP_RESET_ON_ACTIVATE', false);
 
-define('PLUGIN_VERSION', "3.0.6");
+define('SP_AFFILIATE_CODE', '');
+
+define('PLUGIN_VERSION', "3.0.7");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
 define('MAX_API_RETRIES', 5);
 $MAX_EXECUTION_TIME = ini_get('max_execution_time');
-if ( is_numeric($MAX_EXECUTION_TIME) )
+if ( is_numeric($MAX_EXECUTION_TIME)  && $MAX_EXECUTION_TIME > 10 )
     define('MAX_EXECUTION_TIME', $MAX_EXECUTION_TIME - 5 );   //in seconds
 else
     define('MAX_EXECUTION_TIME', 25 );
@@ -36,6 +38,7 @@ class WPShortPixel {
     const BULK_EMPTY_QUEUE = 0;
 
     private $_apiKey = '';
+    private $_affiliateSufix;
     private $_compressionType = 1;
     private $_processThumbnails = 1;
     private $_CMYKtoRGBconversion = 1;
@@ -52,14 +55,12 @@ class WPShortPixel {
     }
 
     public function __construct() {
-        if(!is_admin()) {
-            return;
-        }
         if (!session_id()) {
             session_start();
         }
         $this->populateOptions();
-
+        
+        $this->_affiliateSufix = (strlen(SP_AFFILIATE_CODE)) ? "/affiliate/" . SP_AFFILIATE_CODE : "";
         $this->_apiInterface = new ShortPixelAPI($this->_apiKey, $this->_compressionType, $this->_CMYKtoRGBconversion);
         $this->prioQ = new ShortPixelQueue($this);
         $this->view = new ShortPixelView($this);
@@ -184,7 +185,7 @@ class WPShortPixel {
                     STATUS_FAIL: <?= ShortPixelAPI::STATUS_FAIL ?>,
                     STATUS_SKIP: <?= ShortPixelAPI::STATUS_SKIP ?>,
                     STATUS_QUOTA_EXCEEDED: <?= ShortPixelAPI::STATUS_QUOTA_EXCEEDED ?>,
-                    WP_PLUGIN_URL: '<?= WP_PLUGIN_URL ?>',
+                    WP_PLUGIN_URL: '<?= plugins_url( '', __FILE__ ) ?>',
                     API_KEY: "<?= $this->_apiKey ?>"
                 });
             });
@@ -217,7 +218,7 @@ class WPShortPixel {
         $args = array(
                 'id'    => 'shortpixel_processing',
                 'title' => '<div title="' . $tooltip . '" ><img src="' 
-                         . WP_PLUGIN_URL . '/shortpixel-image-optimiser/img/' . $icon . '"><span class="shp-alert">!</span></div>',
+                         . plugins_url( 'img/'.$icon, __FILE__ ) . '"><span class="shp-alert">!</span></div>',
                 'href'  => $link,
                 'meta'  => array('target'=> $blank, 'class' => 'shortpixel-toolbar-processing' . $extraClasses)
         );
@@ -877,7 +878,8 @@ HTML;
         if(!$this->_verifiedKey) {
 
             //if invalid key we display the link to the API Key
-            $formHTML .= '<tr><td style="padding-left: 0px;" colspan="2">Don’t have an API Key? <a href="https://shortpixel.com/wp-apikey" target="_blank">Sign up, it’s free.</a></td></tr>';
+            $formHTML .= '<tr><td style="padding-left: 0px;" colspan="2">Don’t have an API Key? <a href="https://shortpixel.com/wp-apikey'
+                       . $this->_affiliateSufix . '" target="_blank">Sign up, it’s free.</a></td></tr>';
             $formHTML .= '</form>';
         } else {
             //if valid key we display the rest of the options
@@ -908,7 +910,7 @@ clip art and comics.
 </p>
 <table class="form-table">
 <tbody><tr>
-<th scope="row"><label for="thumbnails">Image thumbnails:</label></th>
+<th scope="row"><label for="thumbnails">Also include thumbnails:</label></th>
 <td><input name="thumbnails" type="checkbox" id="thumbnails" {$checked}> Apply compression also to image thumbnails.</td>
 </tr>
 <tr>
@@ -939,7 +941,7 @@ for(var i = 0; i < rad.length; i++) {
         if(this !== prev) {
             prev = this;
         }
-        alert('This type of optimization will apply to new uploaded images. <BR>Images that were already processed will not be re-optimized.');
+        alert('This type of optimization will apply to new uploaded images.\\nImages that were already processed will not be re-optimized.');
     };
 }
 </script>
@@ -1223,7 +1225,7 @@ HTML;
                 }
                 else
                 {
-                    print "<img src=\"" . WP_PLUGIN_URL . "/shortpixel-image-optimiser/img/loading.gif\">Image waiting to be processed
+                    print "<img src=\"" . plugins_url( 'img/loading.gif', __FILE__ ) . "\">Image waiting to be processed
                           | <a href=\"javascript:manualOptimization({$id})\">Retry</a></div>";
                     $this->prioQ->push($id); //should be there but just to make sure
                 }    
@@ -1523,7 +1525,17 @@ HTML;
 
 }
 
-$pluginInstance = new WPShortPixel();
-global $pluginInstance;
+function onInit() {
+    if ( ! is_admin() || !is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+    $pluginInstance = new WPShortPixel;
+    global $pluginInstance;
+} 
+
+add_action( 'init',  'onInit');
+
+//$pluginInstance = new WPShortPixel();
+//global $pluginInstance;
 
 ?>
