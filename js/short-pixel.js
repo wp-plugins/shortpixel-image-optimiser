@@ -112,13 +112,14 @@ function checkBulkProcessingCallApi(){
                                    + ShortPixel.API_KEY + ")\">Extend Quota</a>");
                     showToolBarAlert(ShortPixel.STATUS_QUOTA_EXCEEDED);
                     break;
-/*                case ShortPixel.STATUS_FAIL:
+                case ShortPixel.STATUS_FAIL:
                     setCellMessage(id, data["Message"]);
                     if(isBulkPage) {
                         showToolBarAlert(ShortPixel.STATUS_FAIL, data["Message"]);
                     }
                     console.log(data["Message"]);
-                    break;*/
+                    setTimeout(checkBulkProgress, 2000);
+                    break;
                 case ShortPixel.STATUS_EMPTY_QUEUE:
                     console.log(data["Message"]);
                     clearBulkProcessor(); //nothing to process, leave the role. Next page load will check again
@@ -147,10 +148,10 @@ function checkBulkProcessingCallApi(){
                     }                    
                     //fall through
                 case ShortPixel.STATUS_ERROR: //for error and skip also we retry
-                case ShortPixel.STATUS_FAIL:
                 case ShortPixel.STATUS_SKIP:
                     console.log('Server response: ' + response);
                     setTimeout(checkBulkProgress, 2000);
+                    break;
             }
         }
     });

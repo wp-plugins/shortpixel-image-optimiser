@@ -96,6 +96,29 @@ class ShortPixelQueue {
         return $found;
     }
     
+    public function removeFromFailed($ID) {
+        $failed = explode(",", WPShortPixel::getOpt('wp-short-pixel-failed-imgs',''));
+        $key = array_search($ID, $failed);
+        if($key !== false) {
+            unset($failed[$key]);
+            $failed = array_values($failed);
+            update_option('wp-short-pixel-failed-imgs',  implode(",", $failed) );
+        }        
+    }
+    
+    public function addToFailed($ID) {
+        $failed = WPShortPixel::getOpt('wp-short-pixel-failed-imgs','');
+        if(!in_array($ID, explode(",", $failed))) {
+            update_option('wp-short-pixel-failed-imgs', (strlen($failed) ? $failed . "," : "") . $ID );
+        }                        
+    }
+
+    public function getFailed() {
+        $failed = WPShortPixel::getOpt('wp-short-pixel-failed-imgs','');
+        if(!strlen($failed)) return array();
+        return explode(",", $failed);
+    }
+
     public function bulkRunning() {
         //$bulkProcessingStatus = get_option('bulkProcessingStatus');
         return $this->startBulkId > $this->stopBulkId;

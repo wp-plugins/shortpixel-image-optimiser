@@ -68,6 +68,13 @@ class ShortPixelView {
             <?php if($imgProcessedCount['totalFiles'] < $imageCount['totalFiles']) { ?>
             <p><?=number_format($imageCount['mainFiles'] - $imgProcessedCount['mainFiles'])?> images and <?=number_format(($imageCount['totalFiles'] - $imageCount['mainFiles']) - ($imgProcessedCount['totalFiles'] - $imgProcessedCount['mainFiles']))?> thumbnails are not yet optimized by ShortPixel.</p>
             <?php } ?>
+            <?php 
+            $failed = $this->ctrl->getPrioQ()->getFailed();
+//die(print_r($failed));
+            if(count($failed)) { ?>
+                <p>The following images are not writable so ShortPixel could not update the files. Please check the rights for these and then restart the optimization process.</p>
+                <?=$this->displayFailed($failed)?>
+            <?php } ?>
             <p>Restart the optimization process for new images added to your library by clicking the button below. Already optimized images will not be reprocessed.
             <form action='' method='POST' >
                 <input type='checkbox' name='thumbnails' <?=$this->ctrl->processThumbnails() ? "checked":""?>> Include thumbnails<br><br>
@@ -151,4 +158,20 @@ class ShortPixelView {
         <?php
     }
      
+    public function displayFailed($failed) {
+        ?>
+            <div class="bulk-progress bulk-stats">
+                <?php foreach($failed as $fail) { 
+                $meta = wp_get_attachment_metadata($fail);
+                if(isset($meta["ShortPixelImprovement"]) && is_numeric($meta["ShortPixelImprovement"])){
+                    $this->ctrl->getPrioQ()->removeFromFailed($fail);
+                } else {
+                    ?> <div class="label"><a href="/wp-admin/post.php?post=<?=$fail?>&action=edit"><?=substr($meta["file"], 0, 80)?> - ID: <?=$fail?></a></div><br/>
+                <?php } 
+                }?>
+            </div>
+        <?php
+    }
+
+    
 }

@@ -314,19 +314,18 @@ class ShortPixelAPI {
             //overwrite the original files with the optimized ones
             foreach ( $tempFiles as $tempFileID => $tempFilePATH )
             { 
-                if ( file_exists($tempFilePATH) && file_exists($PATHs[$tempFileID]) && is_writable($PATHs[$tempFileID]) )
-                {
+                if ( file_exists($tempFilePATH) && file_exists($PATHs[$tempFileID]) && is_writable($PATHs[$tempFileID]) ) {
                     copy($tempFilePATH, $PATHs[$tempFileID]);
-                    @unlink($tempFilePATH);
-                }
-                else
+                } else {
                     $writeFailed++;
+                }
+                @unlink($tempFilePATH);
                 
                 if ( $writeFailed > 0 )//there was an error
                 {
                     ShortPixelAPI::SaveMessageinMetadata($ID, 'Error: optimized version of ' . $writeFailed . ' file(s) couldn\'t be updated.');
                     update_option('bulkProcessingStatus', "error");
-                    return array("Status" => self::STATUS_FAIL, "Message" => 'Error: optimized version of ' . $writeFailed . ' file(s) couldn\'t be updated.');
+                    return array("Status" => self::STATUS_FAIL, "Code" =>"write-fail", "Message" => 'Error: optimized version of ' . $writeFailed . ' file(s) couldn\'t be updated.');
                 }
                 else
                 {//all files were copied, optimization data regarding the savings locally in DB
