@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.0.7
+ * Version: 3.0.8
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -21,7 +21,7 @@ define('SP_RESET_ON_ACTIVATE', false);
 
 define('SP_AFFILIATE_CODE', '');
 
-define('PLUGIN_VERSION', "3.0.7");
+define('PLUGIN_VERSION', "3.0.8");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -437,6 +437,9 @@ class WPShortPixel {
         if( $result["Status"] == ShortPixelAPI::STATUS_SUCCESS) {
             self::log("HIP: Image ID $ID optimized successfully: ".json_encode($result));
             $prio = $this->prioQ->remove($ID);
+            //remove also from the failed list if it failed in the past
+            $prio = $this->prioQ->removeFromFailed($ID);
+            
             if(!$prio && $ID <= $this->prioQ->getStartBulkId()) {
                 $this->prioQ->setStartBulkId($ID - 1);
                 $this->prioQ->logBulkProgress();
@@ -470,6 +473,10 @@ class WPShortPixel {
         elseif ($result["Status"] == ShortPixelAPI::STATUS_SKIP
              || $result["Status"] == ShortPixelAPI::STATUS_FAIL) {
             $prio = $this->prioQ->remove($ID);
+            if(isset($result["Code"]) && $result["Code"] == "write-fail") {
+                //put this one in the failed images list - to show the user at the end
+                $prio = $this->prioQ->addToFailed($ID);
+            }
             if(!$prio && $ID <= $this->prioQ->getStartBulkId()) {
                 $this->prioQ->setStartBulkId($ID - 1);
             }                
@@ -1513,6 +1520,10 @@ HTML;
 
     public function getApiKey() {
         return $this->_apiKey;
+    }
+    
+    public function getPrioQ() {
+        return $this->prioQ;
     }
     
     public function backupImages() {
