@@ -1,32 +1,73 @@
 === ShortPixel Image Optimizer ===
 
 Contributors: AlexSP
-Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, jpegtran, image, image optimisation, image optimization, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures, fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize, pdf, pdf optimisation, pdf optimization, optimize pdf, optimise pdf, shrink pdf, jpg, jpeg, jpg optimisation, jpg optimization, optimize jpg, optimise jpg, shrink jpg, gif, animated gif, optimize gif, optimise gif, optimizer, optimiser, compresion, optimization, cruncher, image cruncher, compress png, compress jpg, compress jpeg, compress pdf, faster loading times, image optimiser, improve pagerank, optimise, optimize animated gif,  optimise jpeg, optimize jpeg, optimize png, optimise png, optimise pdf, optimize pdf, tinyjpg, short pixel, shortpixel
+Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, compression, jpegmini, webp, lossless, cwebp, media, jpegtran, image, image optimisation, image optimization, shrink, picture, photo, optimize photos, compress, performance, tinypng, crunch, pngquant, attachment, optimize, pictures, fast, images, image files, image quality, lossy, upload, kraken, resize, seo, smushit, optipng, kraken image optimizer, ewww, photo optimization, gifsicle, image optimizer, images, krakenio, png, gmagick, image optimize, pdf, pdf optimisation, pdf optimization, optimize pdf, optimise pdf, shrink pdf, jpg, jpeg, jpg optimisation, jpg optimization, optimize jpg, optimise jpg, shrink jpg, gif, animated gif, optimize gif, optimise gif, optimizer, optimiser, compresion, optimization, cruncher, image cruncher, compress png, compress jpg, compress jpeg, compress pdf, faster loading times, image optimiser, improve pagerank, optimise, optimize animated gif,  optimise jpeg, optimize jpeg, optimize png, optimise png, optimise pdf, optimize pdf, tinyjpg, short pixel, shortpixel, woocommerce compatible
 
 Requires at least: 3.0.1
 Tested up to: 4.3
-Stable tag: 3.0.8
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Fast, easy-to-use and lightweight plugin that optimizes images & PDFs. Preserve a high visual quality of images and make your website load faster!
+Easy-to-use, lightweight plugin that optimizes images & PDFs. Make your website faster, keeping the images’ high quality. WooCommerce compatible.
 
 == Description ==
 
-ShortPixel is an image compression tool that helps improve your website performance. The plugin optimizes images automatically using both lossy and lossless compression. Resulting, smaller, images are no different in quality from the original.
+ShortPixel makes your website load faster by reducing the size of your images and helps you rank better in Google search. With both lossy and lossless <a rel="friend" href="https://shortpixel.com">image compression</a> available for all common image types (PNG, JPG, GIF), plus PDF files. The plugin is free to use for 100 images/month. 
 
-ShortPixel uses powerful algorithms that enable your website to load faster, use less bandwidth and rank better in search. The unique API key you receive for activating the plugin can be used for multiple websites.
 
-**The ShortPixel package includes:**
+**How does it work?**
 
-* **Both lossy and lossless optimization:** you can choose between the two types of compression. Lossy for photographs. Lossless for technical drawings, clip art and comics.
-* **One API Key for multiple sites:** after registration, you receive an API key that you can further use on several websites or applications.
-* **Up to 90% compression rate:** with lossy compression images that were 3MB can crunch to 307Kb, with no before/after differences..
-* **Supported formats:** JPG, PNG, PDF, both static and animated GIFS. NEW UPDATE: we recently introduced optimization for PDFs.
-* **Backup and restore originals:** if you ever want to return to the original version, images are automatically stored in a backup folder on your hosting servers.
-* **Bulk image optimization:** Crunch your image gallery, and downsize your website. This feature may take up to several hours, depending on the number and size of existing images. 
+Both new and old images can be optimized with ShortPixel. Once activated, the plugin instantly processes new images uploaded to your website. Bulk optimization will automatically process all your past image gallery with one click. Images and thumbnails are processed in the cloud, and replaced back into your website. It’s simple to use, yet incredibly powerful.
 
-On the https://ShortPixel.com website, we offer free access to the ShortPixel API which you can use for further image optimization purposes.
+
+**Plugin features. What you see is what you get:**
+
+* all types of image formats PNG, JPG, GIF (still and animated) and PDF
+* thumbnails and featured images are also optimized
+* free 100 image credits/month. Images that are optimized less that 5% are bonus
+* no file size limit
+* originals are saved in a backup folder and can be manually restored
+* 'Bulk' optimize past gallery with one click
+* 40 days optimization report with all image details and overall statistics
+* works great for eCommerce websites using WooCommerce plugin
+* multisite support for a single API key
+* compatible with WP Engine hosted websites
+* 24h support from our fantastic team
+
+ShortPixel free and paid plans offer the same features and deliver the same optimization quality. The difference is made by the available image quota. 100 images/month are for free, additional image quota requires a small fee ($4,99 for 5,000 image credits).
+
+Both monthly subscriptions and one-time plans are available. The same plan can be used for multiple websites. Check our <a rel="friend"  href="http://shortpixel.com/free-demo">free demo</a> and see the <a href="http://shortpixel.com/pricing">optimization plans</a> on our site.
+
+We believe in a better society, so we support educational non-profits. <a href="http://shortpixel.com/contact">Contact us</a> and we’ll see how we can help!
+
+
+**Why use ShortPixel to optimize you images?**
+
+Image size is crucial to your website’s speed, and website speed affects search ranking. With ShortPixel plugin you will downsize your images and improve your web performance on the spot.
+
+Read more about how <a href="http://googlewebmastercentral.blogspot.ro/2010/04/using-site-speed-in-web-search-ranking.html">Google ranks website speed</a>.
+
+> ★★★★★ **Increased Page Speed and Optimizes Properly**
+> "I noticed a huge difference on page speed after running the bulk compression. Does exactly as promised. An excellent plugin for those that care about page speed, SEO and optimizing their sites to the fullest potential." — [BrowCo](https://wordpress.org/support/topic/increased-page-speed-and-optimizes-properly#post-)
+>
+
+
+**New features coming soon:**
+
+* Affiliate system
+* support for NextGen Galley
+* mass restore for backed-up images
+
+
+**Get in touch!**
+
+Website <a href="https://shortpixel.com">https://shortpixel.com</a>
+Twitter <a href="https://twitter.com/shortpixel">https://twitter.com/shortpixel</a>
+Google+ <a href="https://www.google.com/+Shortpixelpage">https://www.google.com/+Shortpixelpage</a>
+Facebook <a href="https://www.facebook.com/ShortPixel">https://www.facebook.com/ShortPixel</a>
+LinkedIn <a href="https://www.linkedin.com/company/shortpixel">https://www.linkedin.com/company/shortpixel</a>
+
 
 == Installation ==
 
@@ -118,6 +159,13 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 3.1.0 =
+
+* rescale images option
+* referral system
+* show how many thumbs are optimized for each image
+* fix the Visual Composer conflict - thanks to Andy Adams - www.certainlysoftware.com
 
 = 3.0.8 =
 
