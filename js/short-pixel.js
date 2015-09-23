@@ -96,7 +96,7 @@ function checkBulkProcessingCallApi(){
                 if(isNaN(ShortPixel.retries)) ShortPixel.retries = 1;
                 if(ShortPixel.retries < 6) {
                     console.log("Invalid response from server. Retrying pass " + (ShortPixel.retries + 1) +  "...");
-                    setTimeout(checkBulkProgress, 2000);
+                    setTimeout(checkBulkProgress, 5000);
                 } else {
                     console.log("Invalid response from server 6 times. Giving up.");                    
                 }
@@ -118,7 +118,7 @@ function checkBulkProcessingCallApi(){
                         showToolBarAlert(ShortPixel.STATUS_FAIL, data["Message"]);
                     }
                     console.log(data["Message"]);
-                    setTimeout(checkBulkProgress, 2000);
+                    setTimeout(checkBulkProgress, 5000);
                     break;
                 case ShortPixel.STATUS_EMPTY_QUEUE:
                     console.log(data["Message"]);
@@ -137,7 +137,13 @@ function checkBulkProcessingCallApi(){
                     break;
                 case ShortPixel.STATUS_SUCCESS:
                     var percent = data["PercentImprovement"];
-                    setCellMessage(id, "Reduced by <span class='percent'>" + percent + "%</span> | <a href=\"admin.php?action=shortpixel_restore_backup&attachment_ID=" + id + ")\">Restore backup</a>");
+                    var cellMsg = "Reduced by <span class='percent'>" + percent 
+                          + "%</span> | <a href=\"admin.php?action=shortpixel_restore_backup&attachment_ID=" 
+                          + id + ")\">Restore backup</a>";
+                    if(0 + data['ThumbsCount'] > 0) {
+                        cellMsg += "<br>+" + data['ThumbsCount'] + " thumbnails optimized";
+                    }
+                    setCellMessage(id, cellMsg);
                     var animator = new PercentageAnimator("#sp-msg-" + id + " span.percent", percent);
                     animator.animate(percent);
                     if(isBulkPage && typeof data["Thumb"] !== 'undefined' && data["PercentImprovement"] > 0) {
@@ -150,7 +156,7 @@ function checkBulkProcessingCallApi(){
                 case ShortPixel.STATUS_ERROR: //for error and skip also we retry
                 case ShortPixel.STATUS_SKIP:
                     console.log('Server response: ' + response);
-                    setTimeout(checkBulkProgress, 2000);
+                    setTimeout(checkBulkProgress, 5000);
                     break;
             }
         }
@@ -183,6 +189,18 @@ function manualOptimization(id) {
             setCellMessage(id, "This content is not processable.");
         }
         //aici e aici
+    });
+}
+
+function dismissShortPixelNotice(id) {
+    jQuery("#short-pixel-notice-" + id).hide();
+    var data = { action  : 'shortpixel_dismiss_notice',
+                 notice_id: id};
+    jQuery.get(ajaxurl, data, function(response) {
+        data = JSON.parse(response);
+        if(data["Status"] == ShortPixel.STATUS_SUCCESS) {
+            console.log("dismissed");
+        }
     });
 }
 

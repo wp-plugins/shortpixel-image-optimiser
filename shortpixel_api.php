@@ -18,6 +18,9 @@ class ShortPixelAPI {
     private $_CMYKtoRGBconversion = '';
     private $_maxAttempts = 10;
     private $_apiEndPoint = 'https://api.shortpixel.com/v2/reducer.php';
+    private $_resizeImages;
+    private $_resizeWidth;
+    private $_resizeHeight;
 
     public function setCompressionType($compressionType) {
         $this->_compressionType = $compressionType;
@@ -38,10 +41,13 @@ class ShortPixelAPI {
         return $this->_apiKey;
     }
 
-    public function __construct($apiKey, $compressionType, $CMYK2RGB) {
+    public function __construct($apiKey, $compressionType, $CMYK2RGB, $resize, $width, $height) {
         $this->_apiKey = $apiKey;
         $this->setCompressionType($compressionType);
         $this->setCMYKtoRGB($CMYK2RGB);
+        $this->_resizeImages = $resize;
+        $this->_resizeWidth = $width;
+        $this->_resizeHeight = $height;
         add_action('processImageAction', array(&$this, 'processImageAction'), 10, 4);
     }
 
@@ -56,6 +62,9 @@ class ShortPixelAPI {
             'key' => $this->_apiKey,
             'lossy' => $this->_compressionType,
             'cmyk2rgb' => $this->_CMYKtoRGBconversion,
+            'resize' => $this->_resizeImages,
+            'resize_width' => $this->_resizeWidth,
+            'resize_height' => $this->_resizeHeight,
             'urllist' => $URLs
         );
         $arguments = array(
@@ -69,7 +78,7 @@ class ShortPixelAPI {
             'body' => json_encode($requestParameters),
             'cookies' => array()
         );
-
+        
         $response = wp_remote_post($this->_apiEndPoint, $arguments );
         
         //only if $Blocking is true analyze the response
@@ -140,7 +149,7 @@ class ShortPixelAPI {
             }
         }
         $response = $this->doRequests($URLs, true, $ID);//send requests to API
-    
+
         if($response['response']['code'] != 200)//response <> 200 -> there was an error apparently?
             return array("Status" => self::STATUS_FAIL, "Message" => "There was an error and your request was not processed.");
         

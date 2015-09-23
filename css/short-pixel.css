@@ -127,3 +127,8 @@ li.shortpixel-hide {
     font-size: 48px; 
     max-width: 150px;
 }
+p.settings-info {
+    padding-top: 0px; 
+    color: #818181;
+    font-size:13px;
+}
