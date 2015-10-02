@@ -30,7 +30,7 @@ class ShortPixelView {
         </div> <?php 
     }
     
-    public function displayApiKeyAlert() 
+    public static function displayApiKeyAlert() 
     { ?>
         <p>In order to start the optimization process, you need to validate your API key in the <a href="options-general.php?page=wp-shortpixel">ShortPixel Settings</a> page in your WordPress Admin.</p>
         <p>If you don’t have an API Key, you can get one delivered to your inbox, for free.</p>
@@ -38,7 +38,7 @@ class ShortPixelView {
     <?php
     }
     
-    public function displayActivationNotice($when = 'activate')  { ?>
+    public static function displayActivationNotice($when = 'activate')  { ?>
         <div class='notice notice-warning' id='short-pixel-notice-<?=$when?>'>
             <?php if($when != 'activate') { ?>
             <div style="float:right;"><a href="javascript:dismissShortPixelNotice('<?=$when?>')" class="button" style="margin-top:10px;">Dismiss</a></div>
@@ -52,7 +52,7 @@ class ShortPixelView {
                     echo "Your image gallery is not optimized. It takes 2 minutes to <a href='https://shortpixel.com/wp-apikey' target='_blank'>get your API key</a> and activate your ShortPixel plugin.<BR><BR>";
                     break;
                 case 'activate':
-                    $this->displayApiKeyAlert();
+                    self::displayApiKeyAlert();
                     break;
             }
             ?>
@@ -66,11 +66,11 @@ class ShortPixelView {
             <h1>Bulk Image Optimization by ShortPixel</h1>
         <?php
         if ( !$bulkRan ) { ?>
-            <p>You have <?=number_format($imageCount['mainFiles'])?> images in your Media Library and <?=number_format($imageCount['totalFiles'] - $imageCount['mainFiles'])?> smaller thumbnails, associated to these images.</p>
+            <p>You have <?=number_format($quotaData['mainFiles'])?> images in your Media Library and <?=number_format($quotaData['totalFiles'] - $quotaData['mainFiles'])?> smaller thumbnails, associated to these images.</p>
             <?php if($quotaData["totalProcessedFiles"] > 0) { ?>
             <p>From these, <?=number_format($quotaData['mainProcessedFiles'])?> images and <?=number_format($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles'])?> thumbnails were already processed by ShorPixel</p>
             <?php } ?>
-            <p>If the box below is checked, <b>ShortPixel will process a total of <?=number_format($imageCount['totalFiles'] - $imgProcessedCount['totalFiles'])?> images.</b> However, images with less than 5% optimization will not be counted out of your quota, so the final number of counted images could be smaller.</p>
+            <p>If the box below is checked, <b>ShortPixel will process a total of <?=number_format($quotaData['totalFiles'] - $quotaData['totalProcessedFiles'])?> images.</b> However, images with less than 5% optimization will not be counted out of your quota, so the final number of counted images could be smaller.</p>
             <p>Thumbnails are important because they are displayed on most of your website's pages and they may generate more traffic than the originals. Optimizing thumbnails will improve your overall website speed. However, if you don't want to optimize thumbnails, please uncheck the box below.</p>
 
             <form action='' method='POST' >
@@ -85,7 +85,7 @@ class ShortPixelView {
             <p>Bulk processing is paused until you resume the optimization process.</p>
             <?=$this->displayBulkProgressBar(false, $percent, "")?>
             <p>Please see below the optimization status so far:</p>
-            <?=$this->displayBulkStats($filesOptimized, $thumbsProcessedCount, $under5PercentCount, $averageCompression, $savedSpace)?>
+            <?=$this->displayBulkStats($quotaData['totalProcessedFiles'], $quotaData['mainProcessedFiles'], $under5PercentCount, $averageCompression, $savedSpace)?>
             <?php if($quotaData['totalProcessedFiles'] < $quotaData['totalFiles']) { ?>
                 <p><?=number_format($quotaData['mainFiles'] - $quotaData['mainProcessedFiles'])?> images and 
                 <?=number_format(($quotaData['totalFiles'] - $quotaData['mainFiles']) - ($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles']))?> thumbnails are not yet optimized by ShortPixel.</p>
@@ -94,7 +94,7 @@ class ShortPixelView {
         <?php
         } else { ?>
             <p>Congratulations, your media library has been successfully optimized!</p>
-            <?=$this->displayBulkStats($filesOptimized, $thumbsProcessedCount, $under5PercentCount, $averageCompression, $savedSpace)?>
+            <?=$this->displayBulkStats($quotaData['totalProcessedFiles'], $quotaData['mainProcessedFiles'], $under5PercentCount, $averageCompression, $savedSpace)?>
             <p>Go to the ShortPixel <a href='<?=get_admin_url()?>options-general.php?page=wp-shortpixel#facts'>Stats</a> and see all your websites' optimized stats. Download your detailed <a href="https://api.shortpixel.com/v2/report.php?key=<?=$this->ctrl->getApiKey()?>">Optimization Report</a> to check your image optimization statistics for the last 40 days</p>
             <?php if($quotaData['totalProcessedFiles'] < $quotaData['totalFiles']) { ?>
                 <p><?=number_format($quotaData['mainFiles'] - $quotaData['mainProcessedFiles'])?> images and 
@@ -173,14 +173,14 @@ class ShortPixelView {
         <?php
     }
     
-    public function displayBulkStats($filesOptimized, $thumbsProcessedCount, $under5PercentCount, $averageCompression, $savedSpace) {
+    public function displayBulkStats($totalOptimized, $mainOptimized, $under5PercentCount, $averageCompression, $savedSpace) {
         ?>
             <div class="bulk-progress bulk-stats">
-                <div class="label">Processed Images and PDFs:</div><div class="stat-value"><?=number_format($filesOptimized - $thumbsProcessedCount)?></div><br>
-                <div class="label">Processed Thumbnails:</div><div class="stat-value"><?=number_format($thumbsProcessedCount)?></div><br>
-                <div class="label totals">Total files processed:</div><div class="stat-value"><?=number_format($filesOptimized)?></div><br>
-                <div class="label totals">Files with <5% optimization (free):</div><div class="stat-value">-<?=number_format($under5PercentCount)?></div><br><br>
-                <div class="label totals">Used quota:</div><div class="stat-value"><?=number_format($filesOptimized - $under5PercentCount)?></div><br>
+                <div class="label">Processed Images and PDFs:</div><div class="stat-value"><?=number_format($mainOptimized)?></div><br>
+                <div class="label">Processed Thumbnails:</div><div class="stat-value"><?=number_format($totalOptimized - $mainOptimized)?></div><br>
+                <div class="label totals">Total files processed:</div><div class="stat-value"><?=number_format($totalOptimized)?></div><br>
+                <div class="label totals">Minus files with <5% optimization (free):</div><div class="stat-value"><?=number_format($under5PercentCount)?></div><br><br>
+                <div class="label totals">Used quota:</div><div class="stat-value"><?=number_format($totalOptimized - $under5PercentCount)?></div><br>
                 <br>
                 <div class="label">Average optimization:</div><div class="stat-value"><?=$averageCompression?>%</div><br>
                 <div class="label">Saved space:</div><div class="stat-value"><?=$savedSpace?></div>
@@ -274,10 +274,10 @@ class ShortPixelView {
                         <th scope="row"><label for="resize">Resize larger images</label></th>
                         <td>
                             <input name="resize" type="checkbox" id="resize" <?= $resize ?>> to maximum
-                            <input type="text" name="width" id="width" style="width:70px" value="<?= max($this->ctrl->getResizeWidth(), $minSizes['width']) ?>" <?= $resizeDisabled ?>/> pixels wide &times; 
-                            <input type="text" name="height" id="height" style="width:70px" value="<?= max($this->ctrl->getResizeHeight(), $minSizes['height']) ?>" <?= $resizeDisabled ?>/> pixels high
+                            <input type="text" name="width" id="width" style="width:70px" value="<?= max($this->ctrl->getResizeWidth(), min(1024, $minSizes['width'])) ?>" <?= $resizeDisabled ?>/> pixels wide &times; 
+                            <input type="text" name="height" id="height" style="width:70px" value="<?= max($this->ctrl->getResizeHeight(), min(1024, $minSizes['height'])) ?>" <?= $resizeDisabled ?>/> pixels high
                             <p class="settings-info"> Recommended for large photos, like the ones taken with your phone. Saved space can go up to 80% after resizing.<br/>
-                                The new resolution cannot be less than your largest thumbnail size, which is <?=$minSizes['width']?> &times; <?=$minSizes['height']?> pixels.</p>
+                                The new resolution should not be less than your largest thumbnail size, which is <?=$minSizes['width']?> &times; <?=$minSizes['height']?> pixels.</p>
                         </td>
                     </tr>
                 </tbody>
@@ -290,8 +290,8 @@ class ShortPixelView {
         <script>
             var rad = document.wp_shortpixel_options.compressionType;
             var prev = null;
-            var minWidth  = <?=$minSizes['width']?>,
-                minHeight = <?=$minSizes['height']?>;
+            var minWidth  = Math.min(1024, <?=$minSizes['width']?>),
+                minHeight = Math.min(1024, <?=$minSizes['height']?>);
             for(var i = 0; i < rad.length; i++) {
                 rad[i].onclick = function() {
 
@@ -311,10 +311,10 @@ class ShortPixelView {
             enableResize("#resize");
             jQuery("#resize").change(function(){ enableResize(this) });
             jQuery("#width").blur(function(){
-                jQuery(this).val(jQuery(this).val() < minWidth ? minWidth : parseInt(jQuery(this).val()));
+                jQuery(this).val(Math.max(minWidth, parseInt(jQuery(this).val())));
             });
             jQuery("#height").blur(function(){
-                jQuery(this).val(jQuery(this).val() < minHeight ? minHeight : parseInt(jQuery(this).val()));
+                jQuery(this).val(Math.max(minHeight, parseInt(jQuery(this).val())));
             });
         </script>
         <?php } ?>
