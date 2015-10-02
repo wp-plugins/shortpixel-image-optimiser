@@ -12,6 +12,7 @@ class ShortPixelAPI {
     const STATUS_QUOTA_EXCEEDED = -3;
     const STATUS_SKIP = -4;
     const STATUS_NOT_FOUND = -5;
+    const STATUS_NO_KEY = -6;
 
     private $_apiKey = '';
     private $_compressionType = '';

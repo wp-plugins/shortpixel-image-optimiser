@@ -39,11 +39,19 @@ function showToolBarAlert($status, $message) {
             jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-alert");
             jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-quota-exceeded");
             jQuery("li.shortpixel-toolbar-processing a").attr("href", "http://shortpixel.com/login/" + ShortPixel.API_KEY);
+            jQuery("li.shortpixel-toolbar-processing a").attr("target", "_blank");
             jQuery("li.shortpixel-toolbar-processing a div").attr("title", "ShortPixel quota exceeded. Click to top-up");
             break;
         case ShortPixel.STATUS_FAIL:        
             jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-alert shortpixel-processing"); 
             jQuery("li.shortpixel-toolbar-processing a div").attr("title", $message);
+            break;
+        case ShortPixel.STATUS_NO_KEY:
+            jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-alert");
+            jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-quota-exceeded");
+            jQuery("li.shortpixel-toolbar-processing a").attr("href", "http://shortpixel.com/wp-apikey");
+            jQuery("li.shortpixel-toolbar-processing a").attr("target", "_blank");
+            jQuery("li.shortpixel-toolbar-processing a div").attr("title", "Get API Key");
             break;
     }
     jQuery("li.shortpixel-toolbar-processing").removeClass("shortpixel-hide");
@@ -105,11 +113,15 @@ function checkBulkProcessingCallApi(){
             var id = data["ImageID"];
             
             var isBulkPage = (jQuery("div.short-pixel-bulk-page").length > 0);
-            
+
             switch (data["Status"]) {
+                case ShortPixel.STATUS_NO_KEY:
+                    setCellMessage(id, data["Message"] + " | <a href=\"https://shortpixel.com/wp-apikey\" target=\"_blank\">Get API Key</a>");
+                    showToolBarAlert(ShortPixel.STATUS_NO_KEY);
+                    break;
                 case ShortPixel.STATUS_QUOTA_EXCEEDED:
                     setCellMessage(id, data["Message"] + " | <a href=\"https://shortpixel.com/login/" 
-                                   + ShortPixel.API_KEY + ")\">Extend Quota</a>");
+                                   + ShortPixel.API_KEY + "\" target=\"_blank\">Extend Quota</a>");
                     showToolBarAlert(ShortPixel.STATUS_QUOTA_EXCEEDED);
                     break;
                 case ShortPixel.STATUS_FAIL:
@@ -137,9 +149,8 @@ function checkBulkProcessingCallApi(){
                     break;
                 case ShortPixel.STATUS_SUCCESS:
                     var percent = data["PercentImprovement"];
-                    var cellMsg = "Reduced by <span class='percent'>" + percent 
-                          + "%</span> | <a href=\"admin.php?action=shortpixel_restore_backup&attachment_ID=" 
-                          + id + ")\">Restore backup</a>";
+                    var cellMsg = "Reduced by <span class='percent'>" + percent + "%</span> " 
+                          + (data["BackupEnabled"] == 1 ? "| <a href=\"admin.php?action=shortpixel_restore_backup&attachment_ID=" + id + ")\">Restore backup</a>" : "");
                     if(0 + data['ThumbsCount'] > 0) {
                         cellMsg += "<br>+" + data['ThumbsCount'] + " thumbnails optimized";
                     }

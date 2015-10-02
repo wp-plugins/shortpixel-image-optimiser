@@ -147,7 +147,7 @@ class ShortPixelQueue {
     }
 
     public function resetStartBulkId() {
-        $this->setStartBulkId($this->ctrl->getMaxMediaId());
+        $this->setStartBulkId(WPShortPixel::getMaxMediaId());
     }
     
     public function setStartBulkId($start){
@@ -204,7 +204,7 @@ class ShortPixelQueue {
     }
     
     public function stopBulk() {
-        $this->startBulkId = $this->ctrl->getMaxMediaId();
+        $this->startBulkId = WPShortPixel::getMaxMediaId();
         $this->stopBulkId = $this->startBulkId;
         update_option("wp-short-pixel-query-id-start", $this->startBulkId);
         update_option("wp-short-pixel-query-id-stop", $this->stopBulkId);
@@ -238,12 +238,12 @@ class ShortPixelQueue {
         delete_option( 'wp-short-pixel-cancel-pointer');
     }
     
-    public function resetBulk() {
+    public static function resetBulk() {
         delete_option('bulkProcessingStatus');        
         delete_option( 'wp-short-pixel-cancel-pointer');
-        $this->startBulkId = $this->stopBulkId = $this->ctrl->getMaxMediaId();
-        update_option( 'wp-short-pixel-query-id-stop', $this->startBulkId );
-        update_option( 'wp-short-pixel-query-id-start', $this->startBulkId );                    
+        $startBulkId = $stopBulkId = WPShortPixel::getMaxMediaId();
+        update_option( 'wp-short-pixel-query-id-stop', $startBulkId );
+        update_option( 'wp-short-pixel-query-id-start', $startBulkId );                    
         update_option('wp-short-pixel-bulk-running-time', 0);
         update_option('wp-short-pixel-last-bulk-start-time', 0);
         update_option('wp-short-pixel-last-bulk-success-time', 0);

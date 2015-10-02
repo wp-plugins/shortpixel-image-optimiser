@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.1.0
+ * Version: 3.1.1
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -21,7 +21,7 @@ define('SP_RESET_ON_ACTIVATE', false);
 
 define('SP_AFFILIATE_CODE', '');
 
-define('PLUGIN_VERSION', "3.1.0");
+define('PLUGIN_VERSION', "3.1.1");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -93,10 +93,6 @@ class WPShortPixel {
         add_action( 'delete_attachment', array( &$this, 'handleDeleteAttachmentInBackup' ) );
         add_action( 'load-upload.php', array( &$this, 'handleCustomBulk'));
         
-        //when plugin is activated run this 
-        register_activation_hook( __FILE__, array( &$this, 'shortPixelActivatePlugin' ) );
-        register_deactivation_hook( __FILE__, array( &$this, 'shortPixelDeactivatePlugin' ) );
-
         //automatic optimization
         add_action( 'wp_ajax_shortpixel_image_processing', array( &$this, 'handleImageProcessing') );
         //manual optimization
@@ -140,9 +136,9 @@ class WPShortPixel {
         $this->_resizeHeight = self::getOpt( 'wp-short-pixel-resize-height', 0);                
     }
     
-    public function shortPixelActivatePlugin()//reset some params to avoid trouble for plugins that were activated/deactivated/activated
+    public static function shortPixelActivatePlugin()//reset some params to avoid trouble for plugins that were activated/deactivated/activated
     {
-        $this->prioQ->resetBulk();
+        self::shortPixelDeactivatePlugin();
         if(SP_RESET_ON_ACTIVATE === true && WP_DEBUG === true) { //force reset plugin counters, only on specific occasions and on test environments
             update_option( 'wp-short-pixel-fileCount', 0);
             update_option( 'wp-short-pixel-thumbnail-count', 0);
@@ -154,25 +150,37 @@ class WPShortPixel {
             update_option( 'wp-short-pixel-total-optimized', 0);//amount of optimized                
             update_option( 'wp-short-pixel-bulk-ever-ran', 0);
             delete_option('wp-short-pixel-priorityQueue');
-            unset($_SESSION["wp-short-pixel-priorityQueue"]);
+            if(isset($_SESSION["wp-short-pixel-priorityQueue"])) {
+                unset($_SESSION["wp-short-pixel-priorityQueue"]);
+            }
             delete_option("wp-short-pixel-bulk-previous-percent");
         }
-        if(!$this->_verifiedKey) {
-            $this->view->displayActivationNotice();
+        if(!self::getOpt('wp-short-pixel-verifiedKey', false)) {
+            update_option('wp-short-pixel-activation-notice', true);
         }
         update_option( 'wp-short-pixel-activation-date', time());
     }
     
+    public static function shortPixelDeactivatePlugin()//reset some params to avoid trouble for plugins that were activated/deactivated/activated
+    {
+        include_once dirname( __FILE__ ) . '/shortpixel_queue.php';
+        ShortPixelQueue::resetBulk();
+        delete_option('wp-short-pixel-activation-notice');
+    }    
+    
     public function displayAdminNotices() {
-        update_option( 'wp-short-pixel-activation-date', time());
         if(!$this->_verifiedKey) {
             $dismissed = self::getOpt( 'wp-short-pixel-dismissed-notices', array());
             $now = time();
             $act = self::getOpt( 'wp-short-pixel-activation-date', $now);
+            if(self::getOpt( 'wp-short-pixel-activation-notice', false)) {
+                ShortPixelView::displayActivationNotice();
+                delete_option('wp-short-pixel-activation-notice');
+            }
             if( ($now > $act + 7200)  && !isset($dismissed['2h'])) {
-                $this->view->displayActivationNotice('2h');
+                ShortPixelView::displayActivationNotice('2h');
             } else if( ($now > $act + 72 * 3600) && !isset($dismissed['3d'])) {
-                    $this->view->displayActivationNotice('3d');
+                    ShortPixelView::displayActivationNotice('3d');
             }
         }
     }
@@ -185,12 +193,6 @@ class WPShortPixel {
         die(json_encode(array("Status" => 'success', "Message" => 'Notice ID: ' . $noticeId . ' dismissed')));
     }        
 
-    
-    public function shortPixelDeactivatePlugin()//reset some params to avoid trouble for plugins that were activated/deactivated/activated
-    {
-        $this->prioQ->resetBulk();
-    }    
-    
     //set default move as "list". only set once, it won't try to set the default mode again.
     public function setDefaultViewModeList() 
     {
@@ -226,8 +228,9 @@ class WPShortPixel {
                     STATUS_EMPTY_QUEUE: <?= self::BULK_EMPTY_QUEUE ?>,
                     STATUS_ERROR: <?= ShortPixelAPI::STATUS_ERROR ?>,
                     STATUS_FAIL: <?= ShortPixelAPI::STATUS_FAIL ?>,
-                    STATUS_SKIP: <?= ShortPixelAPI::STATUS_SKIP ?>,
                     STATUS_QUOTA_EXCEEDED: <?= ShortPixelAPI::STATUS_QUOTA_EXCEEDED ?>,
+                    STATUS_SKIP: <?= ShortPixelAPI::STATUS_SKIP ?>,
+                    STATUS_NO_KEY: <?= ShortPixelAPI::STATUS_NO_KEY ?>,
                     WP_PLUGIN_URL: '<?= plugins_url( '', __FILE__ ) ?>',
                     API_KEY: "<?= $this->_apiKey ?>"
                 });
@@ -425,8 +428,11 @@ class WPShortPixel {
         //die("bau");
         //0: check key
         if( $this->_verifiedKey == false) {
-            echo "Missing API Key";
-            die("Missing API Key");
+            if($ID == null){
+                $ids = $this->getFromPrioAndCheck();
+                $ID = (count($ids) > 0 ? $ids[0] : null);
+            }
+            die(json_encode(array("Status" => ShortPixelAPI::STATUS_NO_KEY, "ImageID" => $ID, "Message" => "Missing API Key")));
         }
         
         self::log("HIP: 0 Priority Queue: ".json_encode($this->prioQ->get()));
@@ -484,6 +490,7 @@ class WPShortPixel {
             $prio = $this->prioQ->removeFromFailed($ID);
             $meta = wp_get_attachment_metadata($ID);
             $result["ThumbsCount"] = isset($meta['sizes']) && is_array($meta['sizes']) ? count($meta['sizes']): 0;
+            $result["BackupEnabled"] = $this->_backupImages;
             
             if(!$prio && $ID <= $this->prioQ->getStartBulkId()) {
                 $this->prioQ->setStartBulkId($ID - 1);
@@ -696,7 +703,7 @@ class WPShortPixel {
         global $wpdb;
 
         if( $this->_verifiedKey == false ) {//invalid API Key
-            $this->view->displayApiKeyAlert();
+            ShortPixelView::displayApiKeyAlert();
             return;
         }
         
@@ -861,8 +868,11 @@ class WPShortPixel {
                 if($validityData['APIKeyValid']) {
                     if(isset($_POST['validate']) && $_POST['validate'] == "validate") {
                         //display notification
-                        if(in_array($_SERVER["SERVER_ADDR"], array("127.0.0.1","::1"))) {
-                            printf($noticeHTML, '#FFC800', "API Key is valid but your server seems to have a local address. 
+                        $urlParts = explode("/", get_site_url());
+                        if( false 
+                           && (((count($urlParts) >= 3) && ($urlParts[2] == 'wpshortpixel.com'))
+                               || in_array($_SERVER["SERVER_ADDR"], array("127.0.0.1","::1")))){
+                            printf($noticeHTML, '#FFC800', "API Key is valid but your server seems to have a local address (" . $_SERVER['SERVER_ADDR'] . "). 
                                    Please make sure that your server is accessible from the Internet before using the API or otherwise we won't be able to optimize them.");
                         } else {
                             
@@ -904,7 +914,7 @@ class WPShortPixel {
                 $this->_resizeImages = (isset($_POST['resize']) ? 1: 0);
                 $this->_resizeWidth = (isset($_POST['width']) ? $_POST['width']: $this->_resizeWidth);
                 $this->_resizeHeight = (isset($_POST['height']) ? $_POST['height']: $this->_resizeHeight);
-                update_option( 'wp-short-pixel-resize-images', $this->_resizeImages);        
+                update_option( 'wp-short-pixel-resize-images', $this->_resizeImages);   
                 update_option( 'wp-short-pixel-resize-width', 0 + $this->_resizeWidth);        
                 update_option( 'wp-short-pixel-resize-height', 0 + $this->_resizeHeight);                
                 
@@ -1044,7 +1054,9 @@ class WPShortPixel {
                     else
                     {
                         print 'PDF not processed';
-                        print " | <a href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
+                        //if($this->_verifiedKey) {
+                            print " | <a href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
+                        //}
                         return;
                     }
                 }
@@ -1065,15 +1077,17 @@ class WPShortPixel {
                 }
                 elseif( is_numeric($data['ShortPixelImprovement'])  ) {
                     if ( $data['ShortPixelImprovement'] < 5 ) {
-                            print $data['ShortPixelImprovement'] . '%';   
-                            print " optimized<BR> Bonus processing";
+                            if($data['ShortPixelImprovement'] > 0 ) {
+                                print $data['ShortPixelImprovement'] . '% optimized<br>';   
+                            }
+                            print "Bonus processing";
                         } else {                    
                             print 'Reduced by ';
                             print $data['ShortPixelImprovement'] . '%';
                         }
                     if ( get_option('wp-short-backup_images') && !isset($data['ShortPixel']['NoBackup'])) //display restore backup option only when backup is active
                         print " | <a href=\"admin.php?action=shortpixel_restore_backup&amp;attachment_ID={$id}\">Restore backup</a>";
-                    if ($this->_backupImages && count($data['sizes'])) {
+                    if (count($data['sizes'])) {
                         print "<br>+" . count($data['sizes']) . " thumbnails optimized";
                     }
                 }
@@ -1128,7 +1142,7 @@ class WPShortPixel {
                         print 'Image not processed';
                         print " | <a href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
                     }
-                    if ($this->_backupImages && count($data['sizes'])) {
+                    if (count($data['sizes'])) {
                         print "<br>+" . count($data['sizes']) . " thumbnails";
                     }
                 }
@@ -1271,7 +1285,7 @@ class WPShortPixel {
         return $total_size;
     }
     
-    public function getMaxMediaId() {
+    public static function getMaxMediaId() {
         global  $wpdb;
         $queryMax = "SELECT max(post_id) as QueryID FROM " . $wpdb->prefix . "postmeta";
         $resultQuery = $wpdb->get_results($queryMax);
@@ -1470,6 +1484,10 @@ function onInit() {
 
 if ( !function_exists( 'vc_action' ) || vc_action() !== 'vc_inline' ) { //handle incompatibility with Visual Composer
     add_action( 'init',  'onInit');
+
+    register_activation_hook( __FILE__, array( 'WPShortPixel', 'shortPixelActivatePlugin' ) );
+    register_deactivation_hook( __FILE__, array( 'WPShortPixel', 'shortPixelDeactivatePlugin' ) );
+
 }
 
 //$pluginInstance = new WPShortPixel();

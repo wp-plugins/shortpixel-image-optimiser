@@ -5,7 +5,7 @@ Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, co
 
 Requires at least: 3.0.1
 Tested up to: 4.3
-Stable tag: 3.1.0
+Stable tag: 3.1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -160,16 +160,21 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 
 == Changelog ==
 
+= 3.1.1 =
+
+* fix calculation of displayed images to be processed counters on bulk start
+* restore option appeared wrongly sometimes  - thanks to Bogdan Günther @ http://medianotions.de
+
 = 3.1.0 =
 
-* rescale images option
+* rescale big images option - thanks to Bogdan Günther @ http://medianotions.de
 * referral system
 * show how many thumbs are optimized for each image
 * fix the Visual Composer conflict - thanks to Andy Adams - www.certainlysoftware.com
 
 = 3.0.8 =
 
-* fix issue with files in /tmp dir that weren't deleted in certain cases, issue noted by Daniel - germangoogleguy.com
+* fix issue with files in /tmp dir that weren't deleted in certain cases, issue noted by Daniel - http://germangoogleguy.com
 
 = 3.0.7 =
 
