@@ -5,7 +5,7 @@ Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, co
 
 Requires at least: 3.0.1
 Tested up to: 4.3
-Stable tag: 3.1.1
+Stable tag: 3.1.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,7 @@ Both new and old images can be optimized with ShortPixel. Once activated, the pl
 
 * all types of image formats PNG, JPG, GIF (still and animated) and PDF
 * thumbnails and featured images are also optimized
+* CMYK to RGB conversion
 * free 100 image credits/month. Images that are optimized less that 5% are bonus
 * no file size limit
 * originals are saved in a backup folder and can be manually restored
@@ -41,6 +42,8 @@ Both monthly subscriptions and one-time plans are available. The same plan can b
 
 We believe in a better society, so we support educational non-profits. <a href="http://shortpixel.com/contact">Contact us</a> and we’ll see how we can help!
 
+Help us spread a the word by recommending ShortPixel to your friends and collect 100 additional image credits for each referred sign up.
+Make money by promoting a great plugin with our <a href="https://shortpixel.com/free-sign-up-affiliate">50/50 affiliate program</a>.
 
 **Why use ShortPixel to optimize you images?**
 
@@ -55,18 +58,17 @@ Read more about how <a href="http://googlewebmastercentral.blogspot.ro/2010/04/u
 
 **New features coming soon:**
 
-* Affiliate system
 * support for NextGen Galley
 * mass restore for backed-up images
 
 
 **Get in touch!**
 
-Website <a href="https://shortpixel.com">https://shortpixel.com</a>
-Twitter <a href="https://twitter.com/shortpixel">https://twitter.com/shortpixel</a>
-Google+ <a href="https://www.google.com/+Shortpixelpage">https://www.google.com/+Shortpixelpage</a>
-Facebook <a href="https://www.facebook.com/ShortPixel">https://www.facebook.com/ShortPixel</a>
-LinkedIn <a href="https://www.linkedin.com/company/shortpixel">https://www.linkedin.com/company/shortpixel</a>
+* Email <a href="https://shortpixel.com/contact">https://shortpixel.com/contact</a>
+* Twitter <a href="https://twitter.com/shortpixel">https://twitter.com/shortpixel</a>
+* Google+ <a href="https://www.google.com/+Shortpixelpage">https://www.google.com/+Shortpixelpage</a>
+* Facebook <a href="https://www.facebook.com/ShortPixel">https://www.facebook.com/ShortPixel</a>
+* LinkedIn <a href="https://www.linkedin.com/company/shortpixel">https://www.linkedin.com/company/shortpixel</a>
 
 
 == Installation ==
@@ -134,7 +136,13 @@ Yes, privacy is guaranteed. The ShortPixel encryption process doesn't allow anyo
 
 = What happens with my original images after they have been processed with ShortPixel? =
 
-Your images are automatically stored in a backup folder, on your hosting server. After optimization, if you want to switch back to a certain original image, hit **Restore backup** in the Media Library. If you are happy with the ShortPixel optimized images, you can deactivate saving the backups in the plugin Settings.
+If you didn't make any changes in the plugin Settings and you left the 'Image backup' option checked, the originals will be located in a backup folder at:
+
+/wp-content/uploads/ShortpixelBackups
+
+After optimization, if you want to switch back to a certain original image, hit Restore backup in the Media Library. If you are happy with the optimized images, you can deactivate saving the backups in the plugin Settings.
+
+
 
 = What types of formats can be optimized? =
 
@@ -160,10 +168,18 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 
 == Changelog ==
 
+= 3.1.2 =
+
+* bulk runs now only on media and post pages
+* settings page redesign
+* client site access test from our servers when activating the API key and warn if site not accessible
+* fix last image sometimes unprocessed by bulk
+* fix progress bar to advance when skipping images
+
 = 3.1.1 =
 
-* fix calculation of displayed images to be processed counters on bulk start
-* restore option appeared wrongly sometimes  - thanks to Bogdan Günther @ http://medianotions.de
+* fix calculation of displayed counters of images to be processed on bulk start
+* fix restore option that appeared wrongly sometimes  - thanks to Bogdan Günther @ http://medianotions.de
 
 = 3.1.0 =
 
