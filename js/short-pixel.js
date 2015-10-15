@@ -78,6 +78,25 @@ function checkQuotaExceededAlert() {
  * calls itself until receives an Empty queue message
  */
 function checkBulkProgress() {
+    if(   window.location.href.search("wp-admin/upload.php") < 0
+       && window.location.href.search("wp-admin/edit.php") < 0
+       && window.location.href.search("wp-admin/edit-tags.php") < 0
+       && window.location.href.search("wp-admin/post-new.php") < 0
+       && window.location.href.search("wp-admin/post.php") < 0) return;
+    
+    //if i'm the bulk processor and i'm not the bulk page and a bulk page comes around, leave the bulk processor role
+    if(ShortPixel.bulkProcessor == true && window.location.href.search("wp-short-pixel-bulk") < 0 
+       && typeof localStorage.bulkPage !== 'undefined' && localStorage.bulkPage > 0) {
+           ShortPixel.bulkProcessor = false;
+    }
+    
+    //if i'm the bulk page, steal the bulk processor
+    if( window.location.href.search("wp-short-pixel-bulk") >= 0 ) {
+        ShortPixel.bulkProcessor = true;
+        localStorage.bulkTime = Math.floor(Date.now() / 1000);
+        localStorage.bulkPage = 1;
+    }
+    
     //if I'm not the bulk processor, check every 20 sec. if the bulk processor is running, otherwise take the role
     if(ShortPixel.bulkProcessor == true || typeof localStorage.bulkTime == 'undefined' || Math.floor(Date.now() / 1000) -  localStorage.bulkTime > 90) {
         ShortPixel.bulkProcessor = true;
@@ -128,6 +147,7 @@ function checkBulkProcessingCallApi(){
                     setCellMessage(id, data["Message"]);
                     if(isBulkPage) {
                         showToolBarAlert(ShortPixel.STATUS_FAIL, data["Message"]);
+                        progressUpdate(data["BulkPercent"], data["BulkMsg"]);
                     }
                     console.log(data["Message"]);
                     setTimeout(checkBulkProgress, 5000);
@@ -167,6 +187,9 @@ function checkBulkProcessingCallApi(){
                 case ShortPixel.STATUS_ERROR: //for error and skip also we retry
                 case ShortPixel.STATUS_SKIP:
                     console.log('Server response: ' + response);
+                    if(isBulkPage && typeof data["BulkPercent"] !== 'undefined') {
+                        progressUpdate(data["BulkPercent"], data["BulkMsg"]);
+                    }
                     setTimeout(checkBulkProgress, 5000);
                     break;
             }
@@ -177,6 +200,9 @@ function checkBulkProcessingCallApi(){
 function clearBulkProcessor(){
     ShortPixel.bulkProcessor = false; //nothing to process, leave the role. Next page load will check again
     localStorage.bulkTime = 0;
+    if(window.location.href.search("wp-short-pixel-bulk") >= 0) {
+        localStorage.bulkPage = 0;
+    }
 }
 
 function setCellMessage(id, message){

@@ -120,8 +120,9 @@ class ShortPixelView {
         <div class="wrap short-pixel-bulk-page">
             <h1>Bulk Image Optimization by ShortPixel</h1>
             <p>Bulk optimization has started.<br>
-               This process will take some time, depending on the number of images in your library. In the meantime, you can continue using the admin as usual.<br>
-               However, <strong>if you close the WordPress admin, the bulk processing will pause</strong> until you open the admin again. </p>
+                This process will take some time, depending on the number of images in your library. In the meantime, you can continue using 
+                the admin as usual, <a href='<?=get_admin_url()?>' target='_blank'>in a different browser window or tab</a>.<br>
+               However, <strong>if you close this window, the bulk processing will pause</strong> until you open the media gallery or the ShortPixel bulk page again. </p>
             <?=$this->displayBulkProgressBar(true, $percent, $message)?>
             <div class="bulk-progress bulk-slider-container">
                 <div style="margin-bottom: 10px;"><span class="short-pixel-block-title">Just optimized:</span></div>
@@ -203,6 +204,55 @@ class ShortPixelView {
         <?php
     }
 
+    function displaySettings($quotaData, $notice, $resources = null, $averageCompression = null, $savedSpace = null, $savedBandwidth = null, 
+                         $remainingImages = null, $totalCallsMade = null, $fileCount = null, $backupFolderSize = null) { 
+        //wp_enqueue_script('jquery.idTabs.js', plugins_url('/js/jquery.idTabs.js',__FILE__) );
+        ?>        
+        <h1>ShortPixel Plugin Settings</h1>
+        <p>
+            <a href="https://shortpixel.com" target="_blank">ShortPixel.com</a> |
+            <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/" target="_blank">Installation </a> |
+            <a href="https://shortpixel.com/contact" target="_blank">Support </a>
+        </p>
+        <?php if($notice !== null) { ?>
+        <br/>
+        <div style="background-color: #fff; border-left: 4px solid <?=$notice['status'] == 'error' ? '#ff0000' : ($notice['status'] == 'warn' ? '#FFC800' : '#7ad03a')?>; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px;;width: 95%">
+                  <p><?=$notice['msg']?></p>
+        </div>
+        <?php } ?>
+
+        <article class="tabs">
+            <section class='sel-tab' id="tab-settings">
+		        <h2><a class='tab-link' href='javascript:void(0);' data-id="tab-settings">Settings</a></h2>
+                <?php $this->displaySettingsForm($quotaData);?>
+            </section> <?php
+            if($averageCompression !== null) {?>
+            <section id="tab-stats">
+                <h2><a class='tab-link' href='javascript:void(0);' data-id="tab-stats">Statistics</a></h2>
+                <?php
+                    $this->displaySettingsStats($quotaData, $averageCompression, $savedSpace, $savedBandwidth, 
+                                                $remainingImages, $totalCallsMade, $fileCount, $backupFolderSize);?>
+            </section> 
+            <?php }
+            if($resources !== null) {?>
+            <section id="tab-resources">
+		        <h2><a class='tab-link' href='javascript:void(0);' data-id="tab-resources">WP Resources</a></h2>
+                <?=(isset($resources['body']) ? $resources['body'] : "Please reload")?>
+            </section>
+            <?php } ?>
+        </article>
+        <script>
+            jQuery(document).ready(function () {
+                jQuery("a.tab-link").click(function(){
+                   var target = jQuery(this).data("id"); 
+                   jQuery("section").removeClass("sel-tab");
+                   jQuery("section#" +target).addClass("sel-tab");
+                });
+            });
+        </script>
+        <?php
+    }    
+    
     public function displaySettingsForm($quotaData) {
         $checked = ($this->ctrl->processThumbnails() ? 'checked' : '');
         $checkedBackupImages = ($this->ctrl->backupImages() ? 'checked' : '');
@@ -211,7 +261,12 @@ class ShortPixelView {
         $resizeDisabled = ($this->ctrl->getResizeImages() ? '' : 'disabled');        
         $minSizes = $this->ctrl->getMaxIntermediateImageSize();
         ?>
-        <form name='wp_shortpixel_options' action=''  method='post' id='wp_shortpixel_options'>
+        <?php if($this->ctrl->getVerifiedKey()) { ?>
+            <p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimization Tool</a>.</p>
+        <?php } else { ?>
+            <p>Please enter here the API Key provided by ShortPixel:</p>
+        <?php } ?>
+        <form name='wp_shortpixel_options' action='options-general.php?page=wp-shortpixel&noheader=true'  method='post' id='wp_shortpixel_options'>
             <table class="form-table">
                 <tbody>
                     <tr>
@@ -283,8 +338,8 @@ class ShortPixelView {
                 </tbody>
             </table>
             <p class="submit">
-                <input type="submit" name="save" id="save" class="button button-primary" title="Save Changes" value="Save Changes"> &nbsp;and then&nbsp;
-                <a class="button button-primary" title="Process all the images in your Media Library" href="upload.php?page=wp-short-pixel-bulk">Bulk Process</a>
+                <input type="submit" name="save" id="save" class="button button-primary" title="Save Changes" value="Save Changes"> &nbsp;
+                <input type="submit" name="save" id="bulk" class="button button-primary" title="Save and go to the Bulk Processing page" value="Bulk Process"> &nbsp;
             </p>
         </form>
         <script>
@@ -332,8 +387,8 @@ class ShortPixelView {
         <?php
     }
     
-    function displaySettingsStats($averageCompression, $savedSpace, $savedBandwidth, 
-                         $quotaData, $remainingImages, $totalCallsMade, $fileCount, $backupFolderSize) { ?>
+    function displaySettingsStats($quotaData, $averageCompression, $savedSpace, $savedBandwidth, 
+                         $remainingImages, $totalCallsMade, $fileCount, $backupFolderSize) { ?>
         <a id="facts"></a>
         <h3>Your ShortPixel Stats</h3>
         <table class="form-table">
@@ -361,7 +416,7 @@ class ShortPixelView {
                 <tr>
                     <th scope="row" bgcolor="#ffffff"><label for="apiQuota">Your ShortPixel plan</label></th>
                     <td bgcolor="#ffffff">
-                        <?=number_format($quotaData['APICallsQuota'])?>/month, renews in <?=floor(30 + (strtotime($quotaData['APILastRenewalDate']) - time()) / 86400)?> days, on <?=date('M d, Y', strtotime($quotaData['APILastRenewalDate']. ' + 30 days'))?> ( <a href="https://shortpixel.com/login/<?=$this->ctrl->getApiKey();?>" target="_blank">Need More? See the options available</a> )<br/>
+                        <?=$quotaData['APICallsQuota']?>/month, renews in <?=floor(30 + (strtotime($quotaData['APILastRenewalDate']) - time()) / 86400)?> days, on <?=date('M d, Y', strtotime($quotaData['APILastRenewalDate']. ' + 30 days'))?> ( <a href="https://shortpixel.com/login/<?=$this->ctrl->getApiKey();?>" target="_blank">Need More? See the options available</a> )<br/>
                         <a href="https://shortpixel.com/login/<?=$this->ctrl->getApiKey()?>/tell-a-friend" target="_blank">Join our friend referral system</a> to win more credits. For each user that joins, you receive +100 images credits/month.
                     </td>
                 </tr>
@@ -380,7 +435,7 @@ class ShortPixelView {
             </tbody>
         </table>
 
-        <p style="padding-top: 0px; color: #818181;" >** Increase your image quota by <a href="https://shortpixel.com/login/<?=$this->ctrl->getApiKey()?>" target="_blank">upgrading</a> your ShortPixel plan.</p>
+        <p style="padding-top: 0px; color: #818181;" >** Increase your image quota by <a href="https://shortpixel.com/login/<?=$this->ctrl->getApiKey()?>" target="_blank">upgrading your ShortPixel plan.</a></p>
 
         <table class="form-table">
             <tbody>
@@ -400,6 +455,10 @@ class ShortPixelView {
                 </tr>
                 <?php } ?>
             </tbody>
-        </table> <?php        
+        </table> 
+        <div style="display:none">
+
+        </div>    
+        <?php        
     }
 }

@@ -198,8 +198,16 @@ class ShortPixelQueue {
     }
     
     public function pauseBulk() {
-        update_option( 'wp-short-pixel-cancel-pointer', $this->startBulkId);//we save this so we can resume bulk processing
+        $cancelPointer = $this->startBulkId;
+        $bulkStartId = $this->getFlagBulkId();
+        update_option( 'wp-short-pixel-cancel-pointer', $cancelPointer);//we save this so we can resume bulk processing
         WPShortPixel::log("PAUSE: Pointer = ".get_option( 'wp-short-pixel-cancel-pointer'));
+        //remove the bulk items from prio queue
+        foreach($this->get() as $qItem) {
+            if($qItem < $bulkStartId) {
+                $this->remove($qItem);
+            }
+        }
         $this->stopBulk();
     }
     
@@ -241,14 +249,26 @@ class ShortPixelQueue {
     public static function resetBulk() {
         delete_option('bulkProcessingStatus');        
         delete_option( 'wp-short-pixel-cancel-pointer');
+        delete_option( "wp-short-pixel-flag-id");
         $startBulkId = $stopBulkId = WPShortPixel::getMaxMediaId();
         update_option( 'wp-short-pixel-query-id-stop', $startBulkId );
         update_option( 'wp-short-pixel-query-id-start', $startBulkId );                    
-        update_option('wp-short-pixel-bulk-running-time', 0);
-        update_option('wp-short-pixel-last-bulk-start-time', 0);
-        update_option('wp-short-pixel-last-bulk-success-time', 0);
+        delete_option( "wp-short-pixel-bulk-previous-percent");
         delete_option( "wp-short-pixel-bulk-processed-items");
+        delete_option('wp-short-pixel-bulk-running-time');
+        delete_option('wp-short-pixel-last-bulk-start-time');
+        delete_option('wp-short-pixel-last-bulk-success-time');
+        delete_option( "wp-short-pixel-bulk-processed-items");
+        delete_option( "wp-short-pixel-bulk-count");
+        delete_option( "wp-short-pixel-bulk-done-count");
     }
+    
+    public static function resetPrio() {
+        delete_option( "wp-short-pixel-priorityQueue");
+        if(isset($_SESSION["wp-short-pixel-priorityQueue"])){
+            unset($_SESSION["wp-short-pixel-priorityQueue"]);   
+        }
+    }    
     
     public function logBulkProgress() {
         $t = time();

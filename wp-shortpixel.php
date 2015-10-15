@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.1.1
+ * Version: 3.1.2
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -21,7 +21,7 @@ define('SP_RESET_ON_ACTIVATE', false);
 
 define('SP_AFFILIATE_CODE', '');
 
-define('PLUGIN_VERSION', "3.1.1");
+define('PLUGIN_VERSION', "3.1.2");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -140,16 +140,30 @@ class WPShortPixel {
     {
         self::shortPixelDeactivatePlugin();
         if(SP_RESET_ON_ACTIVATE === true && WP_DEBUG === true) { //force reset plugin counters, only on specific occasions and on test environments
-            update_option( 'wp-short-pixel-fileCount', 0);
+            delete_option('wp-short-pixel-apiKey');
+            delete_option('wp-short-pixel-verifiedKey');
+            delete_option('wp-short-pixel-compression');
+            delete_option('wp-short-process_thumbnails');
+            delete_option('wp-short-pixel_cmyk2rgb');
+            delete_option('wp-short-backup_images');
+            delete_option('wp-short-pixel-view-mode');
             update_option( 'wp-short-pixel-thumbnail-count', 0);
             update_option( 'wp-short-pixel-files-under-5-percent', 0);
             update_option( 'wp-short-pixel-savedSpace', 0);
+            delete_option( 'wp-short-pixel-averageCompression');
+            delete_option( 'wp-short-pixel-fileCount');
+            delete_option( 'wp-short-pixel-total-original');
+            delete_option( 'wp-short-pixel-total-optimized');
             update_option( 'wp-short-pixel-api-retries', 0);//sometimes we need to retry processing/downloading a file multiple times
             update_option( 'wp-short-pixel-quota-exceeded', 0);
-            update_option( 'wp-short-pixel-total-original', 0);//amount of original data
-            update_option( 'wp-short-pixel-total-optimized', 0);//amount of optimized                
+            delete_option( 'wp-short-pixel-protocol');
             update_option( 'wp-short-pixel-bulk-ever-ran', 0);
+            delete_option( 'wp-short-pixel-bulk-last-status');
             delete_option('wp-short-pixel-priorityQueue');
+            delete_option( 'wp-short-pixel-resize-images');        
+            delete_option( 'wp-short-pixel-resize-width');        
+            delete_option( 'wp-short-pixel-resize-height');
+            delete_option( 'wp-short-pixel-dismissed-notices');
             if(isset($_SESSION["wp-short-pixel-priorityQueue"])) {
                 unset($_SESSION["wp-short-pixel-priorityQueue"]);
             }
@@ -165,6 +179,7 @@ class WPShortPixel {
     {
         include_once dirname( __FILE__ ) . '/shortpixel_queue.php';
         ShortPixelQueue::resetBulk();
+        ShortPixelQueue::resetPrio();
         delete_option('wp-short-pixel-activation-notice');
     }    
     
@@ -258,6 +273,11 @@ class WPShortPixel {
             $blank = '_blank';
             //$icon = "shortpixel-alert.png";
         }
+        $lastStatus = self::getOpt( 'wp-short-pixel-bulk-last-status', array('Status' => ShortPixelAPI::STATUS_SUCCESS));
+        if($lastStatus['Status'] != ShortPixelAPI::STATUS_SUCCESS) {
+            $extraClasses = " shortpixel-alert shortpixel-processing";
+            $tooltip = $lastStatus['Message'];
+        }
         self::log("TB: Start:  " . $this->prioQ->getStartBulkId() . ", stop: " . $this->prioQ->getStopBulkId() . " PrioQ: "
                  .json_encode($this->prioQ->get()));
 
@@ -284,7 +304,7 @@ class WPShortPixel {
         $action = $wp_list_table->current_action();
 
         switch($action) {
-          // 2. Perform the action
+            // 2. Perform the action
             case 'short-pixel-bulk':
                 // security check
                 check_admin_referer('bulk-media');
@@ -294,7 +314,7 @@ class WPShortPixel {
                 $mediaIds = array_reverse($_GET['media']);
                 foreach( $mediaIds as $ID ) {
                     $meta = wp_get_attachment_metadata($ID);
-                    if(   (!isset($meta['ShortPixel']) || !isset($meta['ShortPixel']['WaitingProcessing']) || $meta['ShortPixel']['WaitingProcessing'] != true) 
+                    if(   (!isset($meta['ShortPixel']) || (isset($meta['ShortPixel']['WaitingProcessing']) && $meta['ShortPixel']['WaitingProcessing'] == true)) 
                        && (!isset($meta['ShortPixelImprovement']) || $meta['ShortPixelImprovement'] != 'Optimization N/A')) {
                         $this->prioQ->push($ID);
                         $meta['ShortPixel']['WaitingProcessing'] = true;
@@ -359,12 +379,12 @@ class WPShortPixel {
         }
         $idList = array();
         for ($sanityCheck = 0, $crtStartQueryID = $startQueryID;  
-             $crtStartQueryID > $endQueryID && count($idList) < 3; $sanityCheck++) {
+             $crtStartQueryID >= $endQueryID && count($idList) < 3; $sanityCheck++) {
  
             self::log("GETDB: current StartID: " . $crtStartQueryID);
 
             $queryPostMeta = "SELECT * FROM " . $wpdb->prefix . "postmeta 
-                WHERE ( post_id <= $crtStartQueryID AND post_id > $endQueryID ) 
+                WHERE ( post_id <= $crtStartQueryID AND post_id >= $endQueryID ) 
                   AND ( meta_key = '_wp_attached_file' OR meta_key = '_wp_attachment_metadata' )
                 ORDER BY post_id DESC
                 LIMIT " . SP_MAX_RESULTS_QUERY;
@@ -425,14 +445,16 @@ class WPShortPixel {
     }
 
     public function handleImageProcessing($ID = null) {
-        //die("bau");
+        //die("stop");
         //0: check key
         if( $this->_verifiedKey == false) {
             if($ID == null){
                 $ids = $this->getFromPrioAndCheck();
                 $ID = (count($ids) > 0 ? $ids[0] : null);
             }
-            die(json_encode(array("Status" => ShortPixelAPI::STATUS_NO_KEY, "ImageID" => $ID, "Message" => "Missing API Key")));
+            $response = array("Status" => ShortPixelAPI::STATUS_NO_KEY, "ImageID" => $ID, "Message" => "Missing API Key");
+            update_option( 'wp-short-pixel-bulk-last-status', $response);
+            die(json_encode($response));
         }
         
         self::log("HIP: 0 Priority Queue: ".json_encode($this->prioQ->get()));
@@ -453,13 +475,14 @@ class WPShortPixel {
             $bulkEverRan = $this->prioQ->stopBulk();
             $avg = self::getAverageCompression();
             $fileCount = get_option('wp-short-pixel-fileCount');
-            die(json_encode(array("Status" => self::BULK_EMPTY_QUEUE, 
+            $response = array("Status" => self::BULK_EMPTY_QUEUE, 
                 "Message" => 'Empty queue ' . $this->prioQ->getStartBulkId() . '->' . $this->prioQ->getStopBulkId(),
                 "BulkStatus" => ($this->prioQ->bulkRunning() 
                         ? "1" : ($this->prioQ->bulkPaused() ? "2" : "0")),
                 "AverageCompression" => $avg,
                 "FileCount" => $fileCount,
-                "BulkPercent" => $this->prioQ->getBulkPercent())));
+                "BulkPercent" => $this->prioQ->getBulkPercent());
+            die(json_encode($response));
         }
 
         self::log("HIP: 1 Prio Queue: ".json_encode($this->prioQ->get()));
@@ -528,11 +551,17 @@ class WPShortPixel {
                 //put this one in the failed images list - to show the user at the end
                 $prio = $this->prioQ->addToFailed($ID);
             }
-            if(!$prio && $ID <= $this->prioQ->getStartBulkId()) {
+            if($ID <= $this->prioQ->getStartBulkId()) {
                 $this->prioQ->setStartBulkId($ID - 1);
+                $this->prioQ->logBulkProgress();
+                $deltaBulkPercent = $this->prioQ->getDeltaBulkPercent(); 
+                $msg = $this->bulkProgressMessage($deltaBulkPercent, $this->prioQ->getTimeRemaining());
+                $result["BulkPercent"] = $this->prioQ->getBulkPercent();
+                $result["BulkMsg"] = $msg;
             }                
         }
-       die(json_encode($result));
+        update_option( 'wp-short-pixel-bulk-last-status', $result);
+        die(json_encode($result));
     }
     
     private function sendToProcessing($ID) {
@@ -824,21 +853,9 @@ class WPShortPixel {
             wp_die('You do not have sufficient permissions to access this page.');
         }
 
-        echo '<h1>ShortPixel Plugin Settings</h1>';
-        echo '<p>
-                <a href="https://shortpixel.com" target="_blank">ShortPixel.com</a> |
-                <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/" target="_blank">Installation </a> |
-                <a href="https://shortpixel.com/contact" target="_blank">Support </a>
-              </p>';
-        if($this->_verifiedKey) {
-            echo '<p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimization Tool</a>.</p>';
-        } else {
-            echo '<p>Please enter here the API Key provided by ShortPixel:</p>';
-        }
-
-        $noticeHTML = "<br/><div style=\"background-color: #fff; border-left: 4px solid %s; box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.1); padding: 1px 12px;\"><p>%s</p></div>";
-
         //die(var_dump($_POST));
+        $noticeHTML = "";
+        $notice = null;
         
         //by default we try to fetch the API Key from wp-config.php (if defined)
         if ( !isset($_POST['save']) && !get_option('wp-short-pixel-verifiedKey') && defined("SHORTPIXEL_API_KEY") && strlen(SHORTPIXEL_API_KEY) == 20 )
@@ -855,44 +872,45 @@ class WPShortPixel {
             {
                 $KeyLength = strlen($_POST['key']);
     
-                printf($noticeHTML, '#ff0000', "The key you provided has " .  $KeyLength . " characters. The API key should have 20 characters, letters and numbers only.<BR> <b>Please check that the API key is the same as the one you received in your confirmation email.</b><BR>
+                $notice = array("status" => "error", "msg" => "The key you provided has " .  $KeyLength . " characters. The API key should have 20 characters, letters and numbers only.<BR> <b>Please check that the API key is the same as the one you received in your confirmation email.</b><BR>
                 If this problem persists, please contact us at <a href='mailto:help@shortpixel.com?Subject=API Key issues' target='_top'>help@shortpixel.com</a> or <a href='https://shortpixel.com/contact' target='_blank'>here</a>.");
             }
             else
             {
-                $validityData = $this->getQuotaInformation($_POST['key'], true);
+                $validityData = $this->getQuotaInformation($_POST['key'], true, isset($_POST['validate']) && $_POST['validate'] == "validate");
     
                 $this->_apiKey = $_POST['key'];
                 $this->_apiInterface->setApiKey($this->_apiKey);
                 update_option('wp-short-pixel-apiKey', $_POST['key']);
                 if($validityData['APIKeyValid']) {
                     if(isset($_POST['validate']) && $_POST['validate'] == "validate") {
+                        // delete last status if it was no valid key
+                        $lastStatus = get_option( 'wp-short-pixel-bulk-last-status');
+                        if(isset($lastStatus) && $lastStatus['Status'] == ShortPixelAPI::STATUS_NO_KEY) {
+                            delete_option( 'wp-short-pixel-bulk-last-status');
+                        }
                         //display notification
                         $urlParts = explode("/", get_site_url());
-                        if( false 
-                           && (((count($urlParts) >= 3) && ($urlParts[2] == 'wpshortpixel.com'))
-                               || in_array($_SERVER["SERVER_ADDR"], array("127.0.0.1","::1")))){
-                            printf($noticeHTML, '#FFC800', "API Key is valid but your server seems to have a local address (" . $_SERVER['SERVER_ADDR'] . "). 
+                        if( $validityData['DomainCheck'] == 'NOT Accessible'){
+                            $notice = array("status" => "warn", "msg" => "API Key is valid but your site is not accessible from our servers. 
                                    Please make sure that your server is accessible from the Internet before using the API or otherwise we won't be able to optimize them.");
                         } else {
-                            
                             if ( function_exists("is_multisite") && is_multisite() )
-                                printf($noticeHTML, '#7ad03a', "API Key valid! <br>You seem to be running a multisite, please note that API Key can also be configured in wp-config.php like this:<BR> <b>define('SHORTPIXEL_API_KEY', '".$this->_apiKey."');</b>");
+                                $notice = array("status" => "success", "msg" => "API Key valid! <br>You seem to be running a multisite, please note that API Key can also be configured in wp-config.php like this:<BR> <b>define('SHORTPIXEL_API_KEY', '".$this->_apiKey."');</b>");
                             else
-                                printf($noticeHTML, '#7ad03a', 'API Key valid!');
+                                $notice = array("status" => "success", "msg" => 'API Key valid!');
                         }
                     }
                     update_option('wp-short-pixel-verifiedKey', true);
                     $this->_verifiedKey = true;
                     //test that the "uploads"  have the right rights and also we can create the backup dir for ShortPixel
                     if ( !file_exists(SP_BACKUP_FOLDER) && !@mkdir(SP_BACKUP_FOLDER, 0777, true) )
-                        printf($noticeHTML, '#ff0000', "There is something preventing us to create a new folder for backing up your original files.<BR>
-                        Please make sure that folder <b>" . 
-                                        WP_CONTENT_DIR . DIRECTORY_SEPARATOR . "uploads</b> has the necessary write and read rights." );                    
+                        $notice = array("status" => "error", "msg" => "There is something preventing us to create a new folder for backing up your original files.<BR>
+                        Please make sure that folder <b>" . WP_CONTENT_DIR . DIRECTORY_SEPARATOR . "uploads</b> has the necessary write and read rights.");
                 } else {
                     if(isset($_POST['validate'])) {
                         //display notification
-                        printf($noticeHTML, '#ff0000', $validityData["Message"]);
+                        $notice = array("status" => "error", "msg" => $validityData["Message"]);
                     }
                     update_option('wp-short-pixel-verifiedKey', false);
                     $this->_verifiedKey = false;
@@ -918,17 +936,23 @@ class WPShortPixel {
                 update_option( 'wp-short-pixel-resize-width', 0 + $this->_resizeWidth);        
                 update_option( 'wp-short-pixel-resize-height', 0 + $this->_resizeHeight);                
                 
+                if($_POST['save'] == "Bulk Process") {
+                    wp_redirect("upload.php?page=wp-short-pixel-bulk");
+                    exit();
+                }
             }
         }
-
-
+        //now output headers. They were prevented with noheaders=true in the form url in order to be able to redirect if bulk was pressed
+        if(isset($_REQUEST['noheader'])) {
+            require_once(ABSPATH . 'wp-admin/admin-header.php');
+        }
+        
         //empty backup
         if(isset($_POST['emptyBackup'])) {
             $this->emptyBackup();
         }
 
         $quotaData = $this->checkQuotaAndAlert();
-        $this->view->displaySettingsForm($quotaData);
 
         if($this->_verifiedKey) {
             $fileCount = number_format(get_option('wp-short-pixel-fileCount'));
@@ -943,8 +967,11 @@ class WPShortPixel {
             $remainingImages = ( $remainingImages < 0 ) ? 0 : number_format($remainingImages);
             $totalCallsMade = number_format($quotaData['APICallsMadeNumeric'] + $quotaData['APICallsMadeOneTimeNumeric']);
             
-            $this->view->displaySettingsStats($averageCompression, $savedSpace, $savedBandwidth, 
-                         $quotaData, $remainingImages, $totalCallsMade, $fileCount, $backupFolderSize);        
+            $resources = wp_remote_get("https://shortpixel.com/resources-frag");
+            $this->view->displaySettings($quotaData, $notice, $resources, $averageCompression, $savedSpace, $savedBandwidth, 
+                                         $remainingImages, $totalCallsMade, $fileCount, $backupFolderSize);        
+        } else {
+            $this->view->displaySettings($quotaData, $notice);        
         }
         
     }
@@ -955,7 +982,14 @@ class WPShortPixel {
                : 0;
     }
     
-    public function getQuotaInformation($apiKey = null, $appendUserAgent = false) {
+    /**
+     * 
+     * @param type $apiKey
+     * @param type $appendUserAgent
+     * @param type $validate - true if we are validating the api key, send also the domain name and number of pics
+     * @return type
+     */
+    public function getQuotaInformation($apiKey = null, $appendUserAgent = false, $validate = false) {
     
         if(is_null($apiKey)) { $apiKey = $this->_apiKey; }
 
@@ -968,6 +1002,13 @@ class WPShortPixel {
         if($appendUserAgent) {
             $args['body']['useragent'] = "Agent" . urlencode($_SERVER['HTTP_USER_AGENT']);
         }
+        if($validate) {
+            $args['body']['DomainCheck'] = get_site_url();
+            $imageCount = $this->countAllProcessableFiles();
+            $args['body']['ImagesCount'] = $imageCount['mainFiles'];
+            $args['body']['ThumbsCount'] = $imageCount['totalFiles'] - $imageCount['mainFiles'];
+        }
+
         $response = wp_remote_post($requestURL, $args);
         
         if(is_wp_error( $response )) //some hosting providers won't allow https:// POST connections so we try http:// as well
@@ -980,7 +1021,8 @@ class WPShortPixel {
             "APIKeyValid" => false,
             "Message" => 'API Key could not be validated due to a connectivity error.<BR>Your firewall may be blocking us. Please contact your hosting provider and ask them to allow connections from your site to IP 176.9.106.46.<BR> If you still cannot validate your API Key after this, please <a href="https://shortpixel.com/contact" target="_blank">contact us</a> and we will try to help. ',
             "APICallsMade" => 'Information unavailable. Please check your API key.',
-            "APICallsQuota" => 'Information unavailable. Please check your API key.');
+            "APICallsQuota" => 'Information unavailable. Please check your API key.',
+            "DomainCheck" => 'NOT Accessible');
 
         if(is_object($response) && get_class($response) == 'WP_Error') {
             
@@ -1010,7 +1052,6 @@ class WPShortPixel {
             update_option('wp-short-pixel-quota-exceeded',0);
         else
             update_option('wp-short-pixel-quota-exceeded',1);//activate quota limiting            
-                                    
         return array(
             "APIKeyValid" => true,
             "APICallsMade" => number_format($data->APICallsMade) . ' images',
@@ -1021,10 +1062,9 @@ class WPShortPixel {
             "APICallsQuotaNumeric" => $data->APICallsQuota,
             "APICallsMadeOneTimeNumeric" => $data->APICallsMadeOneTime,
             "APICallsQuotaOneTimeNumeric" => $data->APICallsQuotaOneTime,
-            "APILastRenewalDate" => $data->DateSubscription
+            "APILastRenewalDate" => $data->DateSubscription,
+            "DomainCheck" => (isset($data->DomainCheck) ? $data->DomainCheck : null)
         );
-
-
     }
 
     public function generateCustomColumn( $column_name, $id ) {
@@ -1087,7 +1127,7 @@ class WPShortPixel {
                         }
                     if ( get_option('wp-short-backup_images') && !isset($data['ShortPixel']['NoBackup'])) //display restore backup option only when backup is active
                         print " | <a href=\"admin.php?action=shortpixel_restore_backup&amp;attachment_ID={$id}\">Restore backup</a>";
-                    if (count($data['sizes'])) {
+                    if (isset($data['sizes']) && count($data['sizes'])) {
                         print "<br>+" . count($data['sizes']) . " thumbnails optimized";
                     }
                 }
@@ -1123,7 +1163,7 @@ class WPShortPixel {
                 {
                     print "<img src=\"" . plugins_url( 'img/loading.gif', __FILE__ ) . "\">&nbsp;Image waiting to be processed
                           | <a href=\"javascript:manualOptimization({$id})\">Retry</a></div>";
-                    $this->prioQ->push($id); //should be there but just to make sure
+                    if($id > $this->prioQ->getFlagBulkId()) $this->prioQ->push($id); //should be there but just to make sure
                 }    
 
             } elseif(isset($data['ShortPixel']['NoFileOnDisk'])) {
