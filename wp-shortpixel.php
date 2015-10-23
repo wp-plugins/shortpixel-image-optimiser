@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.1.3
+ * Version: 3.1.4
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -21,7 +21,7 @@ define('SP_RESET_ON_ACTIVATE', false);
 
 define('SP_AFFILIATE_CODE', '');
 
-define('PLUGIN_VERSION', "3.1.3");
+define('PLUGIN_VERSION', "3.1.4");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -238,18 +238,20 @@ class WPShortPixel {
     function shortPixelJS() { ?> 
         <script type="text/javascript" >
             jQuery(document).ready(function($){
-                ShortPixel.setOptions({
-                    STATUS_SUCCESS: <?= ShortPixelAPI::STATUS_SUCCESS ?>,
-                    STATUS_EMPTY_QUEUE: <?= self::BULK_EMPTY_QUEUE ?>,
-                    STATUS_ERROR: <?= ShortPixelAPI::STATUS_ERROR ?>,
-                    STATUS_FAIL: <?= ShortPixelAPI::STATUS_FAIL ?>,
-                    STATUS_QUOTA_EXCEEDED: <?= ShortPixelAPI::STATUS_QUOTA_EXCEEDED ?>,
-                    STATUS_SKIP: <?= ShortPixelAPI::STATUS_SKIP ?>,
-                    STATUS_NO_KEY: <?= ShortPixelAPI::STATUS_NO_KEY ?>,
-                    STATUS_RETRY: <?= ShortPixelAPI::STATUS_RETRY ?>,
-                    WP_PLUGIN_URL: '<?= plugins_url( '', __FILE__ ) ?>',
-                    API_KEY: "<?= $this->_apiKey ?>"
-                });
+                if(typeof ShortPixel !== 'undefined') {
+                    ShortPixel.setOptions({
+                        STATUS_SUCCESS: <?= ShortPixelAPI::STATUS_SUCCESS ?>,
+                        STATUS_EMPTY_QUEUE: <?= self::BULK_EMPTY_QUEUE ?>,
+                        STATUS_ERROR: <?= ShortPixelAPI::STATUS_ERROR ?>,
+                        STATUS_FAIL: <?= ShortPixelAPI::STATUS_FAIL ?>,
+                        STATUS_QUOTA_EXCEEDED: <?= ShortPixelAPI::STATUS_QUOTA_EXCEEDED ?>,
+                        STATUS_SKIP: <?= ShortPixelAPI::STATUS_SKIP ?>,
+                        STATUS_NO_KEY: <?= ShortPixelAPI::STATUS_NO_KEY ?>,
+                        STATUS_RETRY: <?= ShortPixelAPI::STATUS_RETRY ?>,
+                        WP_PLUGIN_URL: '<?= plugins_url( '', __FILE__ ) ?>',
+                        API_KEY: "<?= $this->_apiKey ?>"
+                    });
+                }
             });
         </script> <?php
         wp_enqueue_style('short-pixel.css', plugins_url('/css/short-pixel.css',__FILE__) );
@@ -446,7 +448,7 @@ class WPShortPixel {
     }
 
     public function handleImageProcessing($ID = null) {
-        die("stop");
+        //die("stop");
         //0: check key
         if( $this->_verifiedKey == false) {
             if($ID == null){
@@ -1020,7 +1022,7 @@ class WPShortPixel {
             $response = wp_remote_post(str_replace('https://', 'http://', $requestURL), $args);    
         //Second fallback to HTTP get
         if(is_wp_error( $response )){
-            $args['body'] = array();
+            $args['body'] = null;
             $response = wp_remote_get(str_replace('https://', 'http://', $requestURL).$argsStr, $args);
         }
         $defaultData = array(
