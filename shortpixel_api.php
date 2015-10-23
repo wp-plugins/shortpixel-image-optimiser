@@ -13,6 +13,7 @@ class ShortPixelAPI {
     const STATUS_SKIP = -4;
     const STATUS_NOT_FOUND = -5;
     const STATUS_NO_KEY = -6;
+    const STATUS_RETRY = -7;
 
     private $_apiKey = '';
     private $_compressionType = '';
@@ -146,7 +147,7 @@ class ShortPixelAPI {
             {//we'll try again next time user visits a page on admin panel
                 $apiRetries++;
                 update_option('wp-short-pixel-api-retries', $apiRetries);
-                return array("Status" => self::STATUS_ERROR, "Message" => 'Timed out while processing. (pass '.$apiRetries.')');   
+                return array("Status" => self::STATUS_RETRY, "Message" => 'Timed out while processing. (pass '.$apiRetries.')');   
             }
         }
         $response = $this->doRequests($URLs, true, $ID);//send requests to API

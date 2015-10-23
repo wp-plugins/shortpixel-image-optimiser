@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.1.2
+ * Version: 3.1.3
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -21,7 +21,7 @@ define('SP_RESET_ON_ACTIVATE', false);
 
 define('SP_AFFILIATE_CODE', '');
 
-define('PLUGIN_VERSION', "3.1.2");
+define('PLUGIN_VERSION', "3.1.3");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
@@ -246,6 +246,7 @@ class WPShortPixel {
                     STATUS_QUOTA_EXCEEDED: <?= ShortPixelAPI::STATUS_QUOTA_EXCEEDED ?>,
                     STATUS_SKIP: <?= ShortPixelAPI::STATUS_SKIP ?>,
                     STATUS_NO_KEY: <?= ShortPixelAPI::STATUS_NO_KEY ?>,
+                    STATUS_RETRY: <?= ShortPixelAPI::STATUS_RETRY ?>,
                     WP_PLUGIN_URL: '<?= plugins_url( '', __FILE__ ) ?>',
                     API_KEY: "<?= $this->_apiKey ?>"
                 });
@@ -260,7 +261,7 @@ class WPShortPixel {
         $extraClasses = " shortpixel-hide";
         $tooltip = "ShortPixel optimizing...";
         $icon = "shortpixel.png";
-        $link = current_user_can( 'edit_others_posts')? 'upload.php?page=wp-short-pixel-bulk' : 'upload.php';
+        $successLink = $link = current_user_can( 'edit_others_posts')? 'upload.php?page=wp-short-pixel-bulk' : 'upload.php';
         $blank = "";
         if($this->prioQ->processing()) {
             $extraClasses = " shortpixel-processing";
@@ -284,7 +285,7 @@ class WPShortPixel {
         $args = array(
                 'id'    => 'shortpixel_processing',
                 'title' => '<div title="' . $tooltip . '" ><img src="' 
-                         . plugins_url( 'img/'.$icon, __FILE__ ) . '"><span class="shp-alert">!</span></div>',
+                         . plugins_url( 'img/'.$icon, __FILE__ ) . '" success-url="' . $successLink . '"><span class="shp-alert">!</span></div>',
                 'href'  => $link,
                 'meta'  => array('target'=> $blank, 'class' => 'shortpixel-toolbar-processing' . $extraClasses)
         );
@@ -445,7 +446,7 @@ class WPShortPixel {
     }
 
     public function handleImageProcessing($ID = null) {
-        //die("stop");
+        die("stop");
         //0: check key
         if( $this->_verifiedKey == false) {
             if($ID == null){
@@ -998,25 +999,30 @@ class WPShortPixel {
             'sslverify'   => false,
             'body' => array('key' => $apiKey)
         );
+        $argsStr = "?key=".$apiKey;
 
         if($appendUserAgent) {
             $args['body']['useragent'] = "Agent" . urlencode($_SERVER['HTTP_USER_AGENT']);
+            $argsStr .= "&useragent=Agent".$args['body']['useragent'];
         }
         if($validate) {
             $args['body']['DomainCheck'] = get_site_url();
             $imageCount = $this->countAllProcessableFiles();
             $args['body']['ImagesCount'] = $imageCount['mainFiles'];
             $args['body']['ThumbsCount'] = $imageCount['totalFiles'] - $imageCount['mainFiles'];
+            $argsStr .= "&DomainCheck={$args['body']['DomainCheck']}&ImagesCount={$imageCount['mainFiles']}&ThumbsCount={$args['body']['ThumbsCount']}";
         }
 
+        //Try first HTTPS post
         $response = wp_remote_post($requestURL, $args);
-        
-        if(is_wp_error( $response )) //some hosting providers won't allow https:// POST connections so we try http:// as well
+        //some hosting providers won't allow https:// POST connections so we try http:// as well
+        if(is_wp_error( $response )) 
             $response = wp_remote_post(str_replace('https://', 'http://', $requestURL), $args);    
-            
-        if(is_wp_error( $response ))
-            $response = wp_remote_get(str_replace('https://', 'http://', $requestURL), $args);
-
+        //Second fallback to HTTP get
+        if(is_wp_error( $response )){
+            $args['body'] = array();
+            $response = wp_remote_get(str_replace('https://', 'http://', $requestURL).$argsStr, $args);
+        }
         $defaultData = array(
             "APIKeyValid" => false,
             "Message" => 'API Key could not be validated due to a connectivity error.<BR>Your firewall may be blocking us. Please contact your hosting provider and ask them to allow connections from your site to IP 176.9.106.46.<BR> If you still cannot validate your API Key after this, please <a href="https://shortpixel.com/contact" target="_blank">contact us</a> and we will try to help. ',
@@ -1052,6 +1058,13 @@ class WPShortPixel {
             update_option('wp-short-pixel-quota-exceeded',0);
         else
             update_option('wp-short-pixel-quota-exceeded',1);//activate quota limiting            
+
+        //if a not valid status exists, delete it
+        $lastStatus = self::getOpt( 'wp-short-pixel-bulk-last-status', array('Status' => ShortPixelAPI::STATUS_SUCCESS));
+        if($lastStatus['Status'] == ShortPixelAPI::STATUS_NO_KEY) {
+            delete_option('wp-short-pixel-bulk-last-status');
+        }
+            
         return array(
             "APIKeyValid" => true,
             "APICallsMade" => number_format($data->APICallsMade) . ' images',

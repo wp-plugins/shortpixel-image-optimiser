@@ -34,25 +34,30 @@ var ShortPixel = function() {
 }();
 
 function showToolBarAlert($status, $message) {
+    var robo = jQuery("li.shortpixel-toolbar-processing");
     switch($status) {
         case ShortPixel.STATUS_QUOTA_EXCEEDED:
-            jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-alert");
-            jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-quota-exceeded");
-            jQuery("li.shortpixel-toolbar-processing a").attr("href", "http://shortpixel.com/login/" + ShortPixel.API_KEY);
-            jQuery("li.shortpixel-toolbar-processing a").attr("target", "_blank");
-            jQuery("li.shortpixel-toolbar-processing a div").attr("title", "ShortPixel quota exceeded. Click to top-up");
+            robo.addClass("shortpixel-alert");
+            robo.addClass("shortpixel-quota-exceeded");
+            jQuery("a", robo).attr("href", "http://shortpixel.com/login/" + ShortPixel.API_KEY);
+            jQuery("a", robo).attr("target", "_blank");
+            jQuery("a div", robo).attr("title", "ShortPixel quota exceeded. Click to top-up");
             break;
         case ShortPixel.STATUS_FAIL:        
-            jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-alert shortpixel-processing"); 
-            jQuery("li.shortpixel-toolbar-processing a div").attr("title", $message);
+            robo.addClass("shortpixel-alert shortpixel-processing"); 
+            jQuery("a div", robo).attr("title", $message);
             break;
         case ShortPixel.STATUS_NO_KEY:
-            jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-alert");
-            jQuery("li.shortpixel-toolbar-processing").addClass("shortpixel-quota-exceeded");
-            jQuery("li.shortpixel-toolbar-processing a").attr("href", "http://shortpixel.com/wp-apikey");
-            jQuery("li.shortpixel-toolbar-processing a").attr("target", "_blank");
-            jQuery("li.shortpixel-toolbar-processing a div").attr("title", "Get API Key");
+            robo.addClass("shortpixel-alert");
+            robo.addClass("shortpixel-quota-exceeded");
+            jQuery("a", robo).attr("href", "http://shortpixel.com/wp-apikey");
+            jQuery("a", robo).attr("target", "_blank");
+            jQuery("a div", robo).attr("title", "Get API Key");
             break;
+        case ShortPixel.STATUS_SUCCESS:
+            robo.removeClass("shortpixel-alert");
+            jQuery("a", robo).removeAttr("target");
+            jQuery("a", robo).attr("href", jQuery("a img", robo).attr("success-url"));
     }
     jQuery("li.shortpixel-toolbar-processing").removeClass("shortpixel-hide");
 }
@@ -174,16 +179,18 @@ function checkBulkProcessingCallApi(){
                     if(0 + data['ThumbsCount'] > 0) {
                         cellMsg += "<br>+" + data['ThumbsCount'] + " thumbnails optimized";
                     }
+                    showToolBarAlert(ShortPixel.STATUS_SUCCESS, "");
                     setCellMessage(id, cellMsg);
                     var animator = new PercentageAnimator("#sp-msg-" + id + " span.percent", percent);
                     animator.animate(percent);
-                    if(isBulkPage && typeof data["Thumb"] !== 'undefined' && data["PercentImprovement"] > 0) {
+                    if(isBulkPage && typeof data["Thumb"] !== 'undefined') { // && data["PercentImprovement"] > 0) {
                         progressUpdate(data["BulkPercent"], data["BulkMsg"]);
                         if(data["Thumb"].length > 0){
                             sliderUpdate(id, data["Thumb"], data["BkThumb"], data["PercentImprovement"]);
                         }
                     }                    
                     //fall through
+                case ShortPixel.STATUS_RETRY:
                 case ShortPixel.STATUS_ERROR: //for error and skip also we retry
                 case ShortPixel.STATUS_SKIP:
                     console.log('Server response: ' + response);
