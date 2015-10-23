@@ -5,7 +5,7 @@ Tags: picture,  optimization, image editor, pngout, upload speed, shortpixel, co
 
 Requires at least: 3.0.1
 Tested up to: 4.3
-Stable tag: 3.1.2
+Stable tag: 3.1.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -167,6 +167,14 @@ The ShortPixel team is here to help. <a href="https://shortpixel.com/contact">Co
 4. Restore to original image. (Media>Library)
 
 == Changelog ==
+
+= 3.1.4 =
+
+* fix bug in bulk processing
+
+= 3.1.3 =
+
+* fix problems with activating the keys on some systems that do not allow post requests
 
 = 3.1.2 =
 
