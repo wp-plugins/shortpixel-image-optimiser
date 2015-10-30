@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.1.4
+ * Version: 3.1.5
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -21,8 +21,9 @@ define('SP_RESET_ON_ACTIVATE', false);
 
 define('SP_AFFILIATE_CODE', '');
 
-define('PLUGIN_VERSION', "3.1.4");
+define('PLUGIN_VERSION', "3.1.5");
 define('SP_MAX_TIMEOUT', 10);
+define('SP_VALIDATE_MAX_TIMEOUT', 60);
 define('SP_BACKUP', 'ShortpixelBackups');
 define('SP_BACKUP_FOLDER', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . SP_BACKUP);
 define('MAX_API_RETRIES', 50);
@@ -158,7 +159,6 @@ class WPShortPixel {
             update_option( 'wp-short-pixel-quota-exceeded', 0);
             delete_option( 'wp-short-pixel-protocol');
             update_option( 'wp-short-pixel-bulk-ever-ran', 0);
-            delete_option( 'wp-short-pixel-bulk-last-status');
             delete_option('wp-short-pixel-priorityQueue');
             delete_option( 'wp-short-pixel-resize-images');        
             delete_option( 'wp-short-pixel-resize-width');        
@@ -173,6 +173,7 @@ class WPShortPixel {
             update_option('wp-short-pixel-activation-notice', true);
         }
         update_option( 'wp-short-pixel-activation-date', time());
+        delete_option( 'wp-short-pixel-bulk-last-status');
     }
     
     public static function shortPixelDeactivatePlugin()//reset some params to avoid trouble for plugins that were activated/deactivated/activated
@@ -997,7 +998,7 @@ class WPShortPixel {
         if(is_null($apiKey)) { $apiKey = $this->_apiKey; }
 
         $requestURL = 'https://api.shortpixel.com/v2/api-status.php';
-        $args = array('timeout'=> SP_MAX_TIMEOUT,
+        $args = array('timeout'=> SP_VALIDATE_MAX_TIMEOUT,
             'sslverify'   => false,
             'body' => array('key' => $apiKey)
         );
