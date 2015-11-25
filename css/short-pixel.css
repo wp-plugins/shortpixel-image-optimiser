@@ -31,6 +31,101 @@ li.shortpixel-toolbar-processing.shortpixel-alert > a.ab-item > div,
 li.shortpixel-hide {
     display:none;
 }
+.clearfix {
+    width:100%;
+    float:left;
+}
+.short-pixel-bulk-page p {
+    margin: 0.6em 0;
+}
+
+.short-pixel-bulk-page form.start {
+    display:table; 
+    content:" "; 
+    width:98%;
+    background-color:white;
+    padding:10px 10px 0;
+    margin-top: 2em;
+}
+
+.bulk-stats-container{
+    display: inline-block; 
+    min-width:450px; 
+    width: 45%;
+    float:left;
+    padding-right: 50px;
+    font-size:1.1em;
+    line-height: 1.5em;
+}
+.bulk-text-container{
+    display: inline-block; 
+    min-width:440px; 
+    width: 45%;
+    float:left;
+    padding-right: 50px;
+}
+.bulk-text-container h3{
+    border-bottom: 1px solid #a8a8a8;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.5em;
+}
+.bulk-wide {
+    display: inline-block; 
+    width: 90%;
+    float:left;        
+    margin-top: 25px;
+}
+.bulk-stats-container .bulk-label{
+    width:220px; 
+    display:inline-block;
+}
+.bulk-stats-container .bulk-val{
+    width:50px; 
+    display:inline-block; 
+    text-align: right;
+}
+.bulk-stats-container .bulk-total{
+    font-weight: bold; 
+    margin-top:10px;
+    margin-bottom:10px;
+}
+.wp-core-ui .bulk-play{
+    display: inline; 
+    width: 310px;
+    float:left;
+    margin-bottom:20px;
+}
+.wp-core-ui .bulk-play a.button{
+    height:60px;
+    margin-top: 27px;
+    width: 290px;
+    overflow: hidden;
+}
+.wp-core-ui .column-wp-shortPixel .button.button-smaller {
+    font-size: 13px;
+    padding:0px 5px;
+    height:20px;
+    line-height:16px;
+    float:right;
+}
+.wp-core-ui .bulk-play a.button .bulk-btn-img {
+    float:left;
+    display:inline-block;
+    padding-top:6px;
+}
+.wp-core-ui .bulk-play a.button .bulk-btn-txt {
+    float:left;
+    display:inline-block;
+    text-align: right;
+    line-height: 1.3em;
+    margin: 11px 10px;
+}
+.wp-core-ui .bulk-play a.button .bulk-btn-txt span.label {
+    font-size: 1.6em;
+}
+.wp-core-ui .bulk-play a.button .bulk-btn-txt span.total {
+    font-size: 1.4em;
+}
 .bulk-progress {
     padding: 20px 32px 17px;
     background-color: #ffffff;
@@ -130,7 +225,7 @@ li.shortpixel-hide {
 p.settings-info {
     padding-top: 0px; 
     color: #818181;
-    font-size:13px;
+    font-size:13px !important;
 }
 
 /* TABS CONTROLS */
@@ -183,7 +278,7 @@ article.tabs section h2 a {
     line-height: 1.8em;
     text-align: center;
     text-decoration: none;
-    color: inherit;
+    color: #23282d;
     outline: 0 none;
 }
 article.tabs section h2 a:focus,

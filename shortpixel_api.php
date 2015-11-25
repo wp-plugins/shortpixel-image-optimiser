@@ -229,20 +229,24 @@ class ShortPixelAPI {
                 
         if(is_wp_error( $tempFiles[$counter] )) //also tries with http instead of https
         {
-            $tempFiles[$counter] = download_url(str_replace('https://', 'http://', urldecode($fileData->$fileType)));
+            $tempFiles[$counter] = download_url(str_replace('http://', 'https://', urldecode($fileData->$fileType)));
         }    
         //on success we return this
         $returnMessage = array("Status" => self::STATUS_SUCCESS, "Message" => $tempFiles[$counter]);
         
         if ( is_wp_error( $tempFiles[$counter] ) ) {
             @unlink($tempFiles[$counter]);
-            $returnMessage = array("Status" => self::STATUS_ERROR, "Message" => "Error downloading file " . $tempFiles[$counter]->get_error_message());
+            $returnMessage = array(
+                "Status" => self::STATUS_ERROR, 
+                "Message" => "Error downloading file ({$fileData->$fileType}) " . $tempFiles[$counter]->get_error_message());
         } 
         //check response so that download is OK
         elseif( filesize($tempFiles[$counter]) != $correctFileSize) {
             $size = filesize($tempFiles[$counter]);
             @unlink($tempFiles[$counter]);
-            $returnMessage = array("Status" => self::STATUS_ERROR, "Message" => "Error downloading file - incorrect file size (downloaded: {$size}, correct: {$correctFileSize} )");
+            $returnMessage = array(
+                "Status" => self::STATUS_ERROR, 
+                "Message" => "Error downloading file - incorrect file size (downloaded: {$size}, correct: {$correctFileSize} )");
         }
         elseif (!file_exists($tempFiles[$counter])) {
             $returnMessage = array("Status" => self::STATUS_ERROR, "Message" => "Unable to locate downloaded file " . $tempFiles[$counter]);
