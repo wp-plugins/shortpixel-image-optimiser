@@ -3,7 +3,7 @@
  * Plugin Name: ShortPixel Image Optimizer
  * Plugin URI: https://shortpixel.com/
  * Description: ShortPixel optimizes images automatically, while guarding the quality of your images. Check your <a href="options-general.php?page=wp-shortpixel" target="_blank">Settings &gt; ShortPixel</a> page on how to start optimizing your image library and make your website load faster. 
- * Version: 3.1.5
+ * Version: 3.1.6
  * Author: ShortPixel
  * Author URI: https://shortpixel.com
  */
@@ -17,11 +17,11 @@ if ( !is_plugin_active( 'wpmandrill/wpmandrill.php' ) && !is_plugin_active( 'wp-
   require_once( ABSPATH . 'wp-includes/pluggable.php' );//to avoid conflict with wpmandrill plugin
 } 
 
-define('SP_RESET_ON_ACTIVATE', false);
+define('SP_RESET_ON_ACTIVATE', false); //TODO remove
 
 define('SP_AFFILIATE_CODE', '');
 
-define('PLUGIN_VERSION', "3.1.5");
+define('PLUGIN_VERSION', "3.1.6");
 define('SP_MAX_TIMEOUT', 10);
 define('SP_VALIDATE_MAX_TIMEOUT', 60);
 define('SP_BACKUP', 'ShortpixelBackups');
@@ -76,7 +76,7 @@ class WPShortPixel {
         $this->prioQ = new ShortPixelQueue($this);
         $this->view = new ShortPixelView($this);
         
-        define('QUOTA_EXCEEDED', "Quota Exceeded. <a href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>Extend Quota</a>");        
+        define('QUOTA_EXCEEDED', "Quota Exceeded. <a class='button button-smaller button-primary' href='https://shortpixel.com/login/".$this->_apiKey."' target='_blank'>Extend Quota</a>");        
             
         $this->setDefaultViewModeList();//set default mode as list. only @ first run
 
@@ -564,7 +564,9 @@ class WPShortPixel {
                 $result["BulkMsg"] = $msg;
             }                
         }
-        update_option( 'wp-short-pixel-bulk-last-status', $result);
+        if($result["Status"] !== ShortPixelAPI::STATUS_RETRY) {
+            update_option( 'wp-short-pixel-bulk-last-status', $result);
+        }
         die(json_encode($result));
     }
     
@@ -585,7 +587,7 @@ class WPShortPixel {
             $this->sendToProcessing($imageId);
             $ret = array("Status" => ShortPixelAPI::STATUS_SUCCESS, "message" => "");
         } else {
-            die(var_dump($pathParts));            
+            $ret = array("Status" => ShortPixelAPI::STATUS_SKIP, "message" => $imageId);
         }
         //TODO curata functia asta
         die(json_encode($ret));
@@ -736,7 +738,7 @@ class WPShortPixel {
         global $wpdb;
 
         if( $this->_verifiedKey == false ) {//invalid API Key
-            ShortPixelView::displayApiKeyAlert();
+            ShortPixelView::displayActivationNotice();
             return;
         }
         
@@ -940,7 +942,7 @@ class WPShortPixel {
                 update_option( 'wp-short-pixel-resize-width', 0 + $this->_resizeWidth);        
                 update_option( 'wp-short-pixel-resize-height', 0 + $this->_resizeHeight);                
                 
-                if($_POST['save'] == "Bulk Process") {
+                if($_POST['save'] == "Save and Go to Bulk Process") {
                     wp_redirect("upload.php?page=wp-short-pixel-bulk");
                     exit();
                 }
@@ -1024,7 +1026,8 @@ class WPShortPixel {
         //Second fallback to HTTP get
         if(is_wp_error( $response )){
             $args['body'] = null;
-            $response = wp_remote_get(str_replace('https://', 'http://', $requestURL).$argsStr, $args);
+            $requestURL .= $argsStr;
+            $response = wp_remote_get(str_replace('https://', 'http://', $requestURL), $args);
         }
         $defaultData = array(
             "APIKeyValid" => false,
@@ -1044,6 +1047,7 @@ class WPShortPixel {
         }
 
         if($response['response']['code'] != 200) {
+            //$defaultData['Message'] .= "<BR><i>Debug info: response code {$response['response']['code']} URL $requestURL , Response ".json_encode($response)."</i>";
             return $defaultData;
         }
 
@@ -1111,7 +1115,7 @@ class WPShortPixel {
                     {
                         print 'PDF not processed';
                         //if($this->_verifiedKey) {
-                            print " | <a href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
+                            print " <a class='button button-smaller button-primary' href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
                         //}
                         return;
                     }
@@ -1128,7 +1132,7 @@ class WPShortPixel {
                     else
                     {
                         print 'Waiting for bulk processing';
-                        print " | <a href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
+                        print " <a class='button button-smaller button-primary' href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
                     }
                 }
                 elseif( is_numeric($data['ShortPixelImprovement'])  ) {
@@ -1142,7 +1146,7 @@ class WPShortPixel {
                             print $data['ShortPixelImprovement'] . '%';
                         }
                     if ( get_option('wp-short-backup_images') && !isset($data['ShortPixel']['NoBackup'])) //display restore backup option only when backup is active
-                        print " | <a href=\"admin.php?action=shortpixel_restore_backup&amp;attachment_ID={$id}\">Restore backup</a>";
+                        print " &nbsp; <a class='button button-smaller' href=\"admin.php?action=shortpixel_restore_backup&amp;attachment_ID={$id}\">Restore backup</a>";
                     if (isset($data['sizes']) && count($data['sizes'])) {
                         print "<br>+" . count($data['sizes']) . " thumbnails optimized";
                     }
@@ -1153,7 +1157,7 @@ class WPShortPixel {
                     {
                         print QUOTA_EXCEEDED;
                         if ( !get_option('wp-short-pixel-quota-exceeded') )
-                            print " | <a href=\"javascript:manualOptimization({$id})\">Try again</a>";
+                            print " <a class='button button-smaller button-primary' href=\"javascript:manualOptimization({$id})\">Try again</a>";
                     }
                     elseif ( trim(strip_tags($data['ShortPixelImprovement'])) == "Cannot write optimized file" )
                     {
@@ -1196,7 +1200,7 @@ class WPShortPixel {
                     else
                     {
                         print 'Image not processed';
-                        print " | <a href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
+                        print " <a class='button button-smaller button-primary' href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
                     }
                     if (count($data['sizes'])) {
                         print "<br>+" . count($data['sizes']) . " thumbnails";
@@ -1211,7 +1215,7 @@ class WPShortPixel {
                     else
                     {
                         print 'PDF not processed';
-                        print " | <a href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
+                        print " <a class='button button-smaller button-primary' href=\"javascript:manualOptimization({$id})\">Optimize now</a>";
                     }
                 }
             }
@@ -1220,7 +1224,7 @@ class WPShortPixel {
     }
 
     public function columns( $defaults ) {
-        $defaults['wp-shortPixel'] = 'ShortPixel Compression';
+        $defaults['wp-shortPixel'] = 'ShortPixel Compression&nbsp;<a href="options-general.php?page=wp-shortpixel#stats" title="ShortPixel Statistics"><span class="dashicons dashicons-dashboard"></span></a>';
         return $defaults;
     }
 
@@ -1256,12 +1260,16 @@ class WPShortPixel {
     
     static public function isProcessable($ID) {
         $path = get_attached_file($ID);//get the full file PATH
+        return self::isProcessablePath($path);
+    }
+    
+    static public function isProcessablePath($path) {
         $pathParts = pathinfo($path);
         if( isset($pathParts['extension']) && in_array(strtolower($pathParts['extension']), array('jpg', 'jpeg', 'gif', 'png', 'pdf'))) {
-                return true;
-            } else {
-                return false;
-            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
 
@@ -1388,13 +1396,15 @@ class WPShortPixel {
                 else
                 {
                     $attachment = unserialize($file->meta_value);
-                    if ( isset($attachment['sizes']) )
-                        $totalFiles += count($attachment['sizes']);            
-    
-                    if ( isset($attachment['file']) )
-                    {
-                        $totalFiles++;
-                        $mainFiles++;
+                    if(self::isProcessablePath($attachment['file'])){
+                        if ( isset($attachment['sizes']) )
+                            $totalFiles += count($attachment['sizes']);            
+
+                        if ( isset($attachment['file']) )
+                        {
+                            $totalFiles++;
+                            $mainFiles++;
+                        }
                     }
                 }
             }   

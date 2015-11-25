@@ -23,16 +23,20 @@ class ShortPixelView {
                 <strong><?=number_format($quotaData['mainFiles'] - $quotaData['mainProcessedFiles'])?> images and 
                 <?=number_format(($quotaData['totalFiles'] - $quotaData['mainFiles']) - ($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles']))?> thumbnails</strong> are not yet optimized by ShortPixel.
             <?php } ?></p>
-            <p>It’s simple to upgrade, just <a href='https://shortpixel.com/login/<?=$this->ctrl->getApiKey()?>' target='_blank'>log into your account</a> and see the available options.
-            You can immediately start processing 5,000 images/month for &#36;4,99, choose another plan that suits you or <a href='https://shortpixel.com/contact' target='_blank'>contact us</a> for larger compression needs.</p>
+            <div> <!-- style='float:right;margin-top:20px;'> -->
+                <a class='button button-primary' href='https://shortpixel.com/login/<?=$this->ctrl->getApiKey()?>' target='_blank'>Upgrade</a>
+                <input type='button' name='checkQuota' class='button' value='Confirm New Quota' onclick="javascript:window.location.reload();">
+            </div>
+            <!-- <p>It’s simple to upgrade, just <a href='https://shortpixel.com/login/<?=$this->ctrl->getApiKey()?>' target='_blank'>log into your account</a> and see the available options.
+            You can immediately start processing 5,000 images/month for &#36;4,99, choose another plan that suits you or <a href='https://shortpixel.com/contact' target='_blank'>contact us</a> for larger compression needs.</p> -->
             <p>Get more image credits by referring ShortPixel to your friends! <a href="https://shortpixel.com/login/<?=$this->ctrl->getApiKey()?>/tell-a-friend" target="_blank">Check your account</a> for your unique referral link. For each user that joins, you will receive +100 additional image credits/month.</p>
-            <input type='button' name='checkQuota' class='button button-primary' value='Confirm New Quota' onclick="javascript:window.location.reload();" style="margin-bottom:12px;">
+            
         </div> <?php 
     }
     
     public static function displayApiKeyAlert() 
     { ?>
-        <p>In order to start the optimization process, you need to validate your API key in the <a href="options-general.php?page=wp-shortpixel">ShortPixel Settings</a> page in your WordPress Admin.</p>
+        <p>In order to start the optimization process, you need to validate your API Key in the <a href="options-general.php?page=wp-shortpixel">ShortPixel Settings</a> page in your WordPress Admin.</p>
         <p>If you don’t have an API Key, you can get one delivered to your inbox, for free.</p>
         <p>Please <a href="https://shortpixel.com/wp-apikey" target="_blank">sign up</a> to get your API key.</p>
     <?php
@@ -65,20 +69,73 @@ class ShortPixelView {
         <div class="wrap short-pixel-bulk-page">
             <h1>Bulk Image Optimization by ShortPixel</h1>
         <?php
-        if ( !$bulkRan ) { ?>
-            <p>You have <?=number_format($quotaData['mainFiles'])?> images in your Media Library and <?=number_format($quotaData['totalFiles'] - $quotaData['mainFiles'])?> smaller thumbnails, associated to these images.</p>
-            <?php if($quotaData["totalProcessedFiles"] > 0) { ?>
-            <p>From these, <?=number_format($quotaData['mainProcessedFiles'])?> images and <?=number_format($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles'])?> thumbnails were already processed by ShorPixel</p>
-            <?php } ?>
-            <p>If the box below is checked, <b>ShortPixel will process a total of <?=number_format($quotaData['totalFiles'] - $quotaData['totalProcessedFiles'])?> images.</b> However, images with less than 5% optimization will not be counted out of your quota, so the final number of counted images could be smaller.</p>
-            <p>Thumbnails are important because they are displayed on most of your website's pages and they may generate more traffic than the originals. Optimizing thumbnails will improve your overall website speed. However, if you don't want to optimize thumbnails, please uncheck the box below.</p>
-
-            <form action='' method='POST' >
-                <input type='checkbox' name='thumbnails' <?=$this->ctrl->processThumbnails() ? "checked":""?>> Include thumbnails
-                <p>The plugin will replace the original images with the optimized ones starting with the newest images added to your Media Library. You will be able to pause the process anytime.</p>
-                <?=$this->ctrl->backupImages() ? "<p>Your original images will be stored in a separate back-up folder.</p>" : ""?> 
-                <input type='submit' name='bulkProcess' id='bulkProcess' class='button button-primary' value='Start Optimizing'>
+        if ( !$bulkRan ) { 
+            ?>
+            <form class='start' action='' method='POST' id='startBulk'>
+                <input type='hidden' id='mainToProcess' value='<?=$quotaData['mainFiles'] - $quotaData['mainProcessedFiles']?>'/>
+                <input type='hidden' id='totalToProcess' value='<?=$quotaData['totalFiles'] - $quotaData['totalProcessedFiles']?>'/>
+                <div class="bulk-stats-container">
+                    <h3 style='margin-top:0;'>Your image library</h3>
+                    <div class="bulk-label">Original images</div>
+                    <div class="bulk-val"><?=number_format($quotaData['mainFiles'])?></div><br>
+                    <div class="bulk-label">Smaller thumbnails</div>
+                    <div class="bulk-val"><?=number_format($quotaData['totalFiles'] - $quotaData['mainFiles'])?></div>
+                    <div style='width:165px; display:inline-block; padding-left: 5px'>
+                        <input type='checkbox' id='thumbnails' name='thumbnails' onclick='ShortPixel.checkThumbsUpdTotal(this)' <?=$this->ctrl->processThumbnails() ? "checked":""?>> Include thumbnails
+                    </div><br>
+                    <?php if($quotaData["totalProcessedFiles"] > 0) { ?>
+                    <div class="bulk-label bulk-total">Total images</div>
+                    <div class="bulk-val bulk-total"><?=number_format($quotaData['totalFiles'])?></div>
+                    <br><div class="bulk-label">Already optimized originals</div>
+                    <div class="bulk-val"><?=number_format($quotaData['mainProcessedFiles'])?></div><br>
+                    <div class="bulk-label">Already optimized thumbnails</div>
+                    <div class="bulk-val"><?=number_format($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles'])?></div><br>
+                    <?php } ?>
+                    <div class="bulk-label bulk-total">Total to be optimized</div>
+                    <div class="bulk-val bulk-total" id='displayTotal'><?=number_format($quotaData['totalFiles'] - $quotaData['totalProcessedFiles'])?></div>
+                </div>
+                <?php if($quotaData['totalFiles'] - $quotaData['totalProcessedFiles'] > 0) { ?>
+                <div class="bulk-play">
+                    <input type='hidden' name='bulkProcess' id='bulkProcess' value='Start Optimizing'/>
+                    <a href='javascript:void();' onclick="document.getElementById('startBulk').submit();" class='button'>
+                        <div style="width: 320px">
+                            <div class="bulk-btn-img" class="bulk-btn-img">
+                                <img src='https://shortpixel.com/img/robo-slider.png'/>
+                            </div>
+                            <div  class="bulk-btn-txt">
+                                <span class="label">Start Optimizing</span><br>
+                                <span class='total'><?=number_format($quotaData['totalFiles'] - $quotaData['totalProcessedFiles'])?></span> images
+                            </div>
+                            <div class="bulk-btn-img" class="bulk-btn-img">
+                                <img src='<?=plugins_url( 'img/arrow.png', __FILE__ )?>'/>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <?php }  else {?>
+                <div class="bulk-play">
+                    Nothing to optimize! The images that you add to Media Gallery will be automatically optimized after upload.
+                </div>
+                <?php } ?>
             </form>
+            <div class='clearfix'></div>
+            <div class="bulk-wide">
+                <h3 style='font-size: 1.1em; font-weight: bold;'>In order for the optimization to run, you must keep this page open and your computer running. If you close the page for whatever reason, just turn back to it and the bulk process will resume.</h3>
+            </div>
+            <div class='clearfix'></div>
+            <div class="bulk-text-container">
+                <h3>What are Thumbnails?</h3>
+                <p>Thumbnails are smaller images generated by your WP theme. Most themes generate between 3 and 6 thumbnails for each Media Library image.</p>
+                <p>The thumbnails also generate trafic on your website pages and they influence your website's speed.</p>
+                <p>It's highly recommended that you include thumbnails in the optimization as well.</p>
+            </div>
+            <div class="bulk-text-container" style="padding-right:0">
+                <h3>How does it work?</h3>
+                <p>The plugin processes images starting with the newest ones you uploaded in your Media Library.</p>
+                <p>You will be able to pause the process anytime.</p>
+                <p><?=$this->ctrl->backupImages() ? "<p>Your original images will be stored in a separate back-up folder.</p>" : ""?></p>
+                <p>You can watch the images being processed live, right here, after you start optimizing.</p>
+            </div>
             <?php
         } elseif($percent) // bulk is paused
         { ?>
@@ -93,16 +150,32 @@ class ShortPixelView {
             <p>You can continue optimizing your Media Gallery from where you left, by clicking the Resume processing button. Already optimized images will not be reprocessed.</p>
         <?php
         } else { ?>
-            <p>Congratulations, your media library has been successfully optimized!</p>
+            <div class='notice notice-success'>
+                <p style='display:inline-block;'>Congratulations, your media library has been successfully optimized!<br>Share your optimization results on Twitter:
+                </p>
+                <div style='display:inline-block;margin-left: 20px;'>
+                    <a href="https://twitter.com/share" class="twitter-share-button" data-url="https://shortpixel.com" 
+                       data-text="I just optimized my images<?=0+$averageCompression>20 ? " by ".round($averageCompression) ."%" : ""?><?=false && (0+$savedSpace>0 ? " saving $savedSpace" : "")?> with @ShortPixel, a great plugin for increasing #WordPress page speed:" data-size='large'>Tweet</a>
+                    <script>
+                        !function(d,s,id){//Just optimized my site with ShortPixel image optimization plugin
+                            var js,
+                                fjs=d.getElementsByTagName(s)[0],
+                                p=/^http:/.test(d.location)?'http':'https';
+                            if(!d.getElementById(id)){js=d.createElement(s);
+                            js.id=id;js.src=p+'://platform.twitter.com/widgets.js';
+                            fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');
+                    </script>
+                </div>
+            </div>
             <?=$this->displayBulkStats($quotaData['totalProcessedFiles'], $quotaData['mainProcessedFiles'], $under5PercentCount, $averageCompression, $savedSpace)?>
-            <p>Go to the ShortPixel <a href='<?=get_admin_url()?>options-general.php?page=wp-shortpixel#facts'>Stats</a> and see all your websites' optimized stats. Download your detailed <a href="https://api.shortpixel.com/v2/report.php?key=<?=$this->ctrl->getApiKey()?>">Optimization Report</a> to check your image optimization statistics for the last 40 days</p>
+            <p>Go to the ShortPixel <a href='<?=get_admin_url()?>options-general.php?page=wp-shortpixel#stats'>Stats</a> and see all your websites' optimized stats. Download your detailed <a href="https://api.shortpixel.com/v2/report.php?key=<?=$this->ctrl->getApiKey()?>">Optimization Report</a> to check your image optimization statistics for the last 40 days</p>
             <?php if($quotaData['totalProcessedFiles'] < $quotaData['totalFiles']) { ?>
                 <p><?=number_format($quotaData['mainFiles'] - $quotaData['mainProcessedFiles'])?> images and 
                 <?=number_format(($quotaData['totalFiles'] - $quotaData['mainFiles']) - ($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles']))?> thumbnails are not yet optimized by ShortPixel.</p>
             <?php }
             $failed = $this->ctrl->getPrioQ()->getFailed();
             if(count($failed)) { ?>
-                <p>The following images are not writable so ShortPixel could not update the files. Please check the rights for these and then restart the optimization process.</p>
+                <p>The following images could not be processed because of their limited write rights. This usually happens if you have changed your hosting provider. Please restart the optimization process after you granted write rights to all the files below.</p>
                 <?=$this->displayFailed($failed)?>
             <?php } ?>
             <p>Restart the optimization process for new images added to your library by clicking the button below. Already optimized images will not be reprocessed.
@@ -174,8 +247,7 @@ class ShortPixelView {
         <?php
     }
     
-    public function displayBulkStats($totalOptimized, $mainOptimized, $under5PercentCount, $averageCompression, $savedSpace) {
-        ?>
+    public function displayBulkStats($totalOptimized, $mainOptimized, $under5PercentCount, $averageCompression, $savedSpace) {?>
             <div class="bulk-progress bulk-stats">
                 <div class="label">Processed Images and PDFs:</div><div class="stat-value"><?=number_format($mainOptimized)?></div><br>
                 <div class="label">Processed Thumbnails:</div><div class="stat-value"><?=number_format($totalOptimized - $mainOptimized)?></div><br>
@@ -209,10 +281,11 @@ class ShortPixelView {
         //wp_enqueue_script('jquery.idTabs.js', plugins_url('/js/jquery.idTabs.js',__FILE__) );
         ?>        
         <h1>ShortPixel Plugin Settings</h1>
-        <p>
-            <a href="https://shortpixel.com" target="_blank">ShortPixel.com</a> |
-            <a href="https://wordpress.org/plugins/shortpixel-image-optimiser/installation/" target="_blank">Installation </a> |
-            <a href="https://shortpixel.com/contact" target="_blank">Support </a>
+        <p style="font-size:18px">
+            <a href="https://shortpixel.com/<?=$this->ctrl->getVerifiedKey() ? "login/".$this->ctrl->getApiKey() : "pricing"?>" target="_blank" style="font-size:18px">
+                Upgrade now
+            </a> |
+            <a href="https://shortpixel.com/contact" target="_blank" style="font-size:18px">Support </a>
         </p>
         <?php if($notice !== null) { ?>
         <br/>
@@ -243,11 +316,11 @@ class ShortPixelView {
         </article>
         <script>
             jQuery(document).ready(function () {
-                jQuery("a.tab-link").click(function(){
-                   var target = jQuery(this).data("id"); 
-                   jQuery("section").removeClass("sel-tab");
-                   jQuery("section#" +target).addClass("sel-tab");
-                });
+                if(window.location.hash) {
+                    var target = 'tab-' + window.location.hash.substring(window.location.hash.indexOf("#")+1)
+                    ShortPixel.switchSettingsTab(target);
+                }
+                jQuery("article.tabs a.tab-link").click(function(){ShortPixel.switchSettingsTab(jQuery(this).data("id"))});
             });
         </script>
         <?php
@@ -260,11 +333,15 @@ class ShortPixelView {
         $resize = ($this->ctrl->getResizeImages() ? 'checked' : '');
         $resizeDisabled = ($this->ctrl->getResizeImages() ? '' : 'disabled');        
         $minSizes = $this->ctrl->getMaxIntermediateImageSize();
+        $thumbnailsToProcess = isset($quotaData['totalFiles']) ? ($quotaData['totalFiles'] - $quotaData['mainFiles']) - ($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles']) : 0;
         ?>
         <?php if($this->ctrl->getVerifiedKey()) { ?>
-            <p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="' . get_admin_url()  . 'upload.php?page=wp-short-pixel-bulk">Bulk Optimization Tool</a>.</p>
+            <p>New images uploaded to the Media Library will be optimized automatically.<br/>If you have existing images you would like to optimize, you can use the <a href="<?=get_admin_url()?>upload.php?page=wp-short-pixel-bulk">Bulk Optimization Tool</a>.</p>
         <?php } else { ?>
-            <p>Please enter here the API Key provided by ShortPixel:</p>
+            <h3>Step 1:</h3>
+            <p style='font-size: 14px'>If you don't have an API Key, <a href="https://shortpixel.com/wp-apikey<?= $this->ctrl->getAffiliateSufix() ?>" target="_blank">sign up here.</a> It's free and it only takes one minute, we promise!</p>
+            <h3>Step 2:</h3>
+            <p style='font-size: 14px'>Please enter here the API Key you received by email and press Validate.</p>
         <?php } ?>
         <form name='wp_shortpixel_options' action='options-general.php?page=wp-shortpixel&noheader=true'  method='post' id='wp_shortpixel_options'>
             <table class="form-table">
@@ -278,11 +355,6 @@ class ShortPixelView {
                         </td>
                     </tr>
         <?php if (!$this->ctrl->getVerifiedKey()) { //if invalid key we display the link to the API Key ?>
-                    <tr>
-                        <td style="padding-left: 0px;" colspan="2">Don’t have an API Key? 
-                            <a href="https://shortpixel.com/wp-apikey<?= $this->ctrl->getAffiliateSufix() ?>" target="_blank">Sign up, it’s free.</a>
-                        </td>
-                    </tr>
                 </tbody>
             </table>
         </form>
@@ -292,24 +364,23 @@ class ShortPixelView {
                             <label for="compressionType">Compression type:</label>
                         </th>
                         <td>
-                            <input type="radio" name="compressionType" value="1" <?= $this->ctrl->getCompressionType() == 1 ? "checked" : "" ?>>Lossy</br></br>
+                            <input type="radio" name="compressionType" value="1" <?= $this->ctrl->getCompressionType() == 1 ? "checked" : "" ?>>Lossy</br>
+                            <p class="settings-info"> <b>Lossy compression: </b>lossy has a better compression rate than lossless compression.</br>The resulting image
+                                is not 100% identical with the original. Works well for photos taken with your camera.</p></br>
                             <input type="radio" name="compressionType" value="0" <?= $this->ctrl->getCompressionType() != 1 ? "checked" : "" ?>>Lossless
+                            <p class="settings-info"><b>Lossless compression: </b> the shrunk image will be identical with the original and smaller in size.</br>Use this
+                            when you do not want to lose any of the original image's details. Works best for technical drawings,
+                            clip art and comics. </p>
                         </td>
                     </tr>
                 </tbody>
             </table>
-            <p style="color: #818181;"> <b>Lossy compression: </b>lossy has a better compression rate than lossless compression.</br>The resulting image
-            is not 100% identical with the original. Works well for photos taken with your camera.</br></br>
-            <b>Lossless compression: </b> the shrunk image will be identical with the original and smaller in size.</br>Use this
-            when you do not want to lose any of the original image's details. Works best for technical drawings,
-            clip art and comics. </p>
             <table class="form-table">
                 <tbody>
                     <tr>
                         <th scope="row"><label for="thumbnails">Also include thumbnails:</label></th>
                         <td><input name="thumbnails" type="checkbox" id="thumbnails" <?= $checked ?>> Apply compression also to 
-                                <strong><?=number_format(($quotaData['totalFiles'] - $quotaData['mainFiles']) - ($quotaData['totalProcessedFiles'] - $quotaData['mainProcessedFiles']))?> 
-                                image thumbnails.</strong>
+                                <strong><?=$thumbnailsToProcess ? number_format($thumbnailsToProcess) : ""?> image thumbnails.</strong>
                             <p class="settings-info">Thumbnails count up to your total quota, and should be optimized for best results of your website's speed.</p>
                         </td>
                     </tr>
@@ -326,12 +397,12 @@ class ShortPixelView {
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="resize">Resize larger images</label></th>
+                        <th scope="row"><label for="resize">Resize large images</label></th>
                         <td>
                             <input name="resize" type="checkbox" id="resize" <?= $resize ?>> to maximum
                             <input type="text" name="width" id="width" style="width:70px" value="<?= max($this->ctrl->getResizeWidth(), min(1024, $minSizes['width'])) ?>" <?= $resizeDisabled ?>/> pixels wide &times; 
                             <input type="text" name="height" id="height" style="width:70px" value="<?= max($this->ctrl->getResizeHeight(), min(1024, $minSizes['height'])) ?>" <?= $resizeDisabled ?>/> pixels high
-                            <p class="settings-info"> Recommended for large photos, like the ones taken with your phone. Saved space can go up to 80% after resizing.<br/>
+                            <p class="settings-info"> Recommended for large photos, like the ones taken with your phone. Saved space can go up to 80% or more after resizing.<br/>
                                 The new resolution should not be less than your largest thumbnail size, which is <?=$minSizes['width']?> &times; <?=$minSizes['height']?> pixels.</p>
                         </td>
                     </tr>
@@ -339,7 +410,7 @@ class ShortPixelView {
             </table>
             <p class="submit">
                 <input type="submit" name="save" id="save" class="button button-primary" title="Save Changes" value="Save Changes"> &nbsp;
-                <input type="submit" name="save" id="bulk" class="button button-primary" title="Save and go to the Bulk Processing page" value="Bulk Process"> &nbsp;
+                <input type="submit" name="save" id="bulk" class="button button-primary" title="Save and go to the Bulk Processing page" value="Save and Go to Bulk Process"> &nbsp;
             </p>
         </form>
         <script>

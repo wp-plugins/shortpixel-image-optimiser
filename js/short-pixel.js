@@ -28,8 +28,24 @@ var ShortPixel = function() {
         }
     }
     
+    function checkThumbsUpdTotal(el) {
+        var total = jQuery("#" +(el.checked ? "total" : "main")+ "ToProcess").val();
+        jQuery("div.bulk-play span.total").text(total);
+        jQuery("#displayTotal").text(total);
+    }
+    
+    function switchSettingsTab(target){
+        var section = jQuery("section#" +target);
+        if(section.length > 0){
+            jQuery("section").removeClass("sel-tab");
+            jQuery("section#" +target).addClass("sel-tab");        
+        }
+    }
+    
     return {
-        setOptions: setOptions
+        setOptions         : setOptions,
+        checkThumbsUpdTotal: checkThumbsUpdTotal,
+        switchSettingsTab  : switchSettingsTab
     }
 }();
 
@@ -37,6 +53,10 @@ function showToolBarAlert($status, $message) {
     var robo = jQuery("li.shortpixel-toolbar-processing");
     switch($status) {
         case ShortPixel.STATUS_QUOTA_EXCEEDED:
+            if(window.location.href.search("wp-short-pixel-bulk") > 0) { //if we're in bulk reload to see all options
+                location.reload();
+                return;
+            }
             robo.addClass("shortpixel-alert");
             robo.addClass("shortpixel-quota-exceeded");
             jQuery("a", robo).attr("href", "http://shortpixel.com/login/" + ShortPixel.API_KEY);
@@ -50,8 +70,8 @@ function showToolBarAlert($status, $message) {
         case ShortPixel.STATUS_NO_KEY:
             robo.addClass("shortpixel-alert");
             robo.addClass("shortpixel-quota-exceeded");
-            jQuery("a", robo).attr("href", "http://shortpixel.com/wp-apikey");
-            jQuery("a", robo).attr("target", "_blank");
+            jQuery("a", robo).attr("href", "options-general.php?page=wp-shortpixel");//"http://shortpixel.com/wp-apikey");
+            //jQuery("a", robo).attr("target", "_blank");
             jQuery("a div", robo).attr("title", "Get API Key");
             break;
         case ShortPixel.STATUS_SUCCESS:
@@ -83,11 +103,14 @@ function checkQuotaExceededAlert() {
  * calls itself until receives an Empty queue message
  */
 function checkBulkProgress() {
-    if(   window.location.href.search("wp-admin/upload.php") < 0
+    if(false && window.location.href.search("wp-admin/upload.php") < 0
        && window.location.href.search("wp-admin/edit.php") < 0
        && window.location.href.search("wp-admin/edit-tags.php") < 0
        && window.location.href.search("wp-admin/post-new.php") < 0
-       && window.location.href.search("wp-admin/post.php") < 0) return;
+       && window.location.href.search("wp-admin/post.php") < 0) {
+        hideToolBarAlert();
+        return;
+    }
     
     //if i'm the bulk processor and i'm not the bulk page and a bulk page comes around, leave the bulk processor role
     if(ShortPixel.bulkProcessor == true && window.location.href.search("wp-short-pixel-bulk") < 0 
@@ -144,7 +167,7 @@ function checkBulkProcessingCallApi(){
                     showToolBarAlert(ShortPixel.STATUS_NO_KEY);
                     break;
                 case ShortPixel.STATUS_QUOTA_EXCEEDED:
-                    setCellMessage(id, data["Message"] + " | <a href=\"https://shortpixel.com/login/" 
+                    setCellMessage(id, data["Message"] + " <a class='button button-smaller button-primary' href=\"https://shortpixel.com/login/" 
                                    + ShortPixel.API_KEY + "\" target=\"_blank\">Extend Quota</a>");
                     showToolBarAlert(ShortPixel.STATUS_QUOTA_EXCEEDED);
                     break;
@@ -332,3 +355,4 @@ function showStats() {
         
     }
 }
+
